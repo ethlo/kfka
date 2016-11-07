@@ -105,7 +105,7 @@ public class KfkaApplicationTests
     }
 
     @Test
-    public void testQueryWithRelativeOffsetFilteredByTopicAndCustomProperties() throws InterruptedException
+    public void testQueryWithRelativeOffsetFilteredByTopicAndCustomProperty() throws InterruptedException
     {
         kfkaManager.clearAll();
         
@@ -122,22 +122,15 @@ public class KfkaApplicationTests
             .type("mytype"))
             .setUserId(123));
         
-        final List<KfkaMessage> received = new LinkedList<>();
+        final CollectingListener collListener = new CollectingListener();
         new KfkaPredicate(kfkaManager)
             .topic("bar")
             .offset(-10)
             .propertyMatch(Collections.singletonMap("userId", 123))
-            .addListener(new KfkaMessageListener()
-            {
-                @Override
-                public void onMessage(KfkaMessage msg)
-                {
-                    received.add(msg);
-                }
-            });
+            .addListener(collListener);
 
-        assertThat(received).hasSize(1);
-        assertThat(received.get(0).getId()).isEqualTo(2);
+        assertThat(collListener.getReceived()).hasSize(1);
+        assertThat(collListener.getReceived().get(0).getId()).isEqualTo(2);
         
         kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder()
             .payload("myMessage3")
@@ -153,10 +146,22 @@ public class KfkaApplicationTests
             .type("mytype"))
             .setUserId(321));
 
+        // Need to allow asynchronous messages propagate
         Thread.sleep(100);
         
-        assertThat(received).hasSize(2);
-        assertThat(received.get(1).getId()).isEqualTo(3);
-
+        assertThat(collListener.getReceived()).hasSize(2);
+        assertThat(collListener.getReceived().get(1).getId()).isEqualTo(3);
+    }
+    
+    @Test
+    public void testMessagesPersisted() throws InterruptedException
+    {
+        kfkaManager.clearAll();
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype")));
+        Thread.sleep(10000);
+        kfkaManager.clearCache();
+        final CollectingListener l = new CollectingListener();
+        kfkaManager.addListener(l, KfkaPredicate.rewind(kfkaManager, 1));
+        assertThat(l.getReceived()).hasSize(1);
     }
 }

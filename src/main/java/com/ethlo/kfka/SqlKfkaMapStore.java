@@ -20,59 +20,21 @@ import com.alexkasko.springjdbc.iterable.CloseableIterable;
 import com.alexkasko.springjdbc.iterable.CloseableIterator;
 import com.alexkasko.springjdbc.iterable.IterableNamedParameterJdbcTemplate;
 
-@SuppressWarnings("rawtypes")
-public class SqlKfkaMapStore implements KfkaMapStore
+public class SqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
 {
-    private static final RowMapper<KfkaMessage.Builder> ROW_MAPPER = new RowMapper<KfkaMessage.Builder>()
-    {
-        @Override
-        public KfkaMessage.Builder mapRow(ResultSet rs, int rowNum) throws SQLException
-        {
-            return new KfkaMessage.Builder()
-                 .payload(rs.getBytes("payload"))
-                 .timestamp(rs.getLong("timestamp"))
-                 .topic(rs.getString("topic"))
-                 .type(rs.getString("type"))
-                 .id(rs.getLong("id"));
-        }
-
-        private Map<String, Comparable> extractExtra(ResultSet rs) throws SQLException
-        {
-            final List<String> extraColumns = new LinkedList<>();
-            for (int i = 0; i < rs.getMetaData().getColumnCount(); i++)
-            {
-                final String colName = rs.getMetaData().getColumnName(i);
-                if (colName.startsWith(FILTER_COLUMN_PREFIX))
-                {
-                    extraColumns.add(colName);
-                }
-            }
-            
-            if (! extraColumns.isEmpty())
-            {
-                final Map<String, Comparable> retVal = new TreeMap<>();
-                for (String colName : extraColumns)
-                {
-                    retVal.put(colName, (Comparable)rs.getObject(colName));
-                }
-            }
-            return Collections.emptyMap();
-        }
-    };
-
-    private static final String FILTER_COLUMN_PREFIX = "filter_";
-    
     private final IterableNamedParameterJdbcTemplate tpl;
+    private RowMapper<T> mapper;
     
-    public SqlKfkaMapStore(DataSource dataSource)
+    public SqlKfkaMapStore(DataSource dataSource, RowMapper<T> mapper)
     {
         this.tpl = new IterableNamedParameterJdbcTemplate(dataSource);
+        this.mapper = mapper;
     }
     
     @Override
-    public KfkaMessage load(Long key)
+    public T load(Long key)
     {
-        final List<KfkaMessage> res = Collections.emptyList(); // tpl.query("SELECT * from kfka WHERE id = :key", Collections.singletonMap("key", key), ROW_MAPPER);
+        final List<T> res = tpl.query("SELECT * from kfka WHERE id = :key", Collections.singletonMap("key", key), mapper);
         if (! res.isEmpty())
         {
             return res.get(0);
@@ -81,10 +43,10 @@ public class SqlKfkaMapStore implements KfkaMapStore
     }
 
     @Override
-    public Map<Long, KfkaMessage> loadAll(Collection<Long> keys)
+    public Map<Long, T> loadAll(Collection<Long> keys)
     {
-        final List<KfkaMessage> res = Collections.emptyList(); //tpl.query("SELECT * FROM kfka WHERE id IN (:keys)", Collections.singletonMap("keys", keys), ROW_MAPPER);
-        final Map<Long, KfkaMessage> retVal = new HashMap<>(keys.size());
+        final List<T> res = tpl.query("SELECT * FROM kfka WHERE id IN (:keys)", Collections.singletonMap("keys", keys), mapper);
+        final Map<Long, T> retVal = new HashMap<>(keys.size());
         res.forEach(e -> {retVal.put(e.getId(), e);});
         return retVal;
     }
@@ -128,7 +90,7 @@ public class SqlKfkaMapStore implements KfkaMapStore
 
     @SuppressWarnings("unchecked")
     @Override
-    public void storeAll(Map<Long, KfkaMessage> map)
+    public void storeAll(Map<Long, T> map)
     {
         if (map.isEmpty())
         {
@@ -138,7 +100,7 @@ public class SqlKfkaMapStore implements KfkaMapStore
         final KfkaMessage first = map.values().iterator().next();
         final String sql = getInsertSql(first);
         final List<Map<String, ?>> parameters = new LinkedList<>();
-        for (Entry<Long, KfkaMessage> entry : map.entrySet())
+        for (Entry<Long, T> entry : map.entrySet())
         {
             parameters.add(getInsertParams(entry.getValue()));
         }

@@ -15,4 +15,6 @@ public interface KfkaManager
     void addListener(KfkaMessageListener l);
 
     void addListener(KfkaMessageListener l, KfkaPredicate kfkaPredicate);
+
+    void clearCache();
 }

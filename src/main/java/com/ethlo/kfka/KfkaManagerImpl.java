@@ -186,4 +186,10 @@ public class KfkaManagerImpl implements KfkaManager
             return ((KfkaMessage)b.getValue()).getId().compareTo(((KfkaMessage)a.getValue()).getId());
         }
     };
+
+    @Override
+    public void clearCache()
+    {
+        this.messages.evictAll();
+    }
 }

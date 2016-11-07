@@ -171,4 +171,9 @@ public class KfkaPredicate implements Serializable
         this.propertyMatch = propertyMatch;
         return this;
     }
+
+    public static KfkaPredicate rewind(KfkaManager manager, int count)
+    {
+        return new KfkaPredicate(manager).offset(-count);
+    }
 }
