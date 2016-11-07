@@ -1,19 +1,24 @@
 package com.ethlo.kfka;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
+import java.util.Collections;
 
-@Service
+import javax.sql.DataSource;
+
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
 public class SqlKfkaCounterStore implements KfkaCounterStore
 {
-    @Autowired
-    public JdbcTemplate tpl;
+    private final NamedParameterJdbcTemplate tpl;
 
+    public SqlKfkaCounterStore(DataSource ds)
+    {
+        this.tpl = new NamedParameterJdbcTemplate(ds);
+    }
+    
     @Override
     public long latest()
     {
-        final Long latest = tpl.queryForObject("SELECT MAX(id) FROM kfka", Long.class);
+        final Long latest = tpl.queryForObject("SELECT MAX(id) FROM kfka", Collections.emptyMap(), Long.class);
         return latest != null ? latest : 0;
     }
 }

@@ -53,9 +53,9 @@ public class KfkaPredicate
         return this;
     }
 
-    public void addListener(KfkaMessageListener kfkaMessageListener)
+    public void addListener(KfkaMessageListener l)
     {
-        kfkaManager.addListener(kfkaMessageListener, this);
+        kfkaManager.addListener(l, this);
     }
 
     public String getTopic()

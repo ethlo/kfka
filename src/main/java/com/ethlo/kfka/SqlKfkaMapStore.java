@@ -14,17 +14,13 @@ import java.util.TreeMap;
 
 import javax.sql.DataSource;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Service;
 
 import com.alexkasko.springjdbc.iterable.CloseableIterable;
 import com.alexkasko.springjdbc.iterable.CloseableIterator;
 import com.alexkasko.springjdbc.iterable.IterableNamedParameterJdbcTemplate;
-import com.hazelcast.core.MapStore;
 
-@Service
-public class SqlKfkaMapStore implements MapStore<Long, KfkaMessage>
+public class SqlKfkaMapStore implements KfkaMapStore
 {
     private static final RowMapper<KfkaMessage> ROW_MAPPER = new RowMapper<KfkaMessage>()
     {
@@ -45,14 +41,12 @@ public class SqlKfkaMapStore implements MapStore<Long, KfkaMessage>
     private static final String INSERT_SQL = "INSERT INTO kfka (id, topic, type, timestamp, message, organization_id, user_id) "
           + "VALUES(:id, :topic, :type, :timestamp, :message, :organization_id, :user_id)";
     
-    private IterableNamedParameterJdbcTemplate tpl;
+    private final IterableNamedParameterJdbcTemplate tpl;
     
-    @Autowired
     public SqlKfkaMapStore(DataSource dataSource)
     {
         this.tpl = new IterableNamedParameterJdbcTemplate(dataSource);
     }
-    
     
     @Override
     public KfkaMessage load(Long key)
