@@ -1,19 +1,19 @@
 package com.ethlo.kfka;
 
 import java.io.Serializable;
+import java.util.Map;
 
 import org.springframework.util.Assert;
 
+@SuppressWarnings("rawtypes")
 public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
 {
     private static final long serialVersionUID = 3209315651061823360L;
     
     private String topic;
     private long timestamp;
-    private String message;
+    private KfkaPayload payload;
     private String type;
-    private long userId;
-    private long organzationId;
 
     private long id;
 
@@ -27,34 +27,22 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
         return timestamp;
     }
 
-    public String getMessage()
+    public KfkaPayload getPayload()
     {
-        return message;
+        return payload;
     }
 
     public String getType()
     {
         return type;
     }
-
-    public long getUserId()
-    {
-        return userId;
-    }
-
-    public long getOrganzationId()
-    {
-        return organzationId;
-    }
-
+    
     public static class Builder
     {
         private String topic;
         private long timestamp;
-        private String message;
+        private KfkaPayload payload;
         private String type;
-        private long userId;
-        private long organzationId;
 
         public Builder topic(String topic)
         {
@@ -68,10 +56,22 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
             return this;
         }
 
-        public Builder message(String message)
+        public Builder payload(String message)
         {
-            this.message = message;
+            this.payload = new KfkaPayload(message);
             return this;
+        }
+        
+        public Builder payload(String message, Map<String, Comparable> queryableProperties)
+        {
+            this.payload = new KfkaPayload(message, queryableProperties);
+            return this;
+        }
+        
+        public Builder payload(byte[] payload, Map<String, Comparable> queryableProperties)
+        {
+            this.payload = new KfkaPayload(payload, queryableProperties);
+            return this;            
         }
 
         public Builder type(String type)
@@ -80,37 +80,29 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
             return this;
         }
 
-        public Builder userId(long userId)
-        {
-            this.userId = userId;
-            return this;
-        }
-
-        public Builder organzationId(long organzationId)
-        {
-            this.organzationId = organzationId;
-            return this;
-        }
-
         public KfkaMessage build()
         {
             return new KfkaMessage(this);
         }
+
+        public Builder payload(KfkaPayload payload)
+        {
+            this.payload = payload;
+            return this;
+        }
     }
 
-    private KfkaMessage(Builder builder)
+    protected KfkaMessage(Builder builder)
     {
         Assert.notNull(builder.topic);
         Assert.notNull(builder.type);
         Assert.notNull(builder.timestamp);
-        Assert.notNull(builder.message);
+        Assert.notNull(builder.payload);
         
         this.topic = builder.topic;
         this.timestamp = builder.timestamp;
-        this.message = builder.message;
+        this.payload = builder.payload;
         this.type = builder.type;
-        this.userId = builder.userId;
-        this.organzationId = builder.organzationId;
     }
 
     @Override
@@ -122,8 +114,8 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
     @Override
     public String toString()
     {
-        return "KfkaMessage [id=" + id + ", " + (topic != null ? "topic=" + topic + ", " : "") + "timestamp=" + timestamp + ", " + (message != null ? "message=" + message + ", " : "")
-                        + (type != null ? "type=" + type + ", " : "") + "userId=" + userId + ", organzationId=" + organzationId + "]";
+        return "KfkaMessage [id=" + id + ", " + (topic != null ? "topic=" + topic + ", " : "") + "timestamp=" + timestamp + ", " + (payload != null ? "payload=" + payload + ", " : "")
+                        + (type != null ? "type=" + type + ", " : "");
     }
 
     KfkaMessage id(long id)
@@ -135,5 +127,10 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
     public Long getId()
     {
         return this.id;
+    }
+
+    public Map<String, Comparable> getQueryableProperties()
+    {
+        return this.payload.getQueryableProperties();
     }
 }

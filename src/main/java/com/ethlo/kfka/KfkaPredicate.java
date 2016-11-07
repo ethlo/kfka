@@ -1,7 +1,20 @@
 package com.ethlo.kfka;
 
-public class KfkaPredicate
+import java.io.Serializable;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
+
+import com.hazelcast.query.Predicate;
+import com.hazelcast.query.Predicates;
+
+@SuppressWarnings("rawtypes")
+public class KfkaPredicate implements Serializable
 {
+    private static final long serialVersionUID = -8869419733948277543L;
+
     private final KfkaManager kfkaManager;
     private Integer offset = null;
     private Long offsetId;
@@ -9,6 +22,9 @@ public class KfkaPredicate
     // Filtering
     private String topic;
     private String type;
+    
+    // Support custom properties
+    private Map<String, Comparable> propertyMatch = new TreeMap<>();
     
     KfkaPredicate(KfkaManager kfkaManager)
     {
@@ -90,4 +106,69 @@ public class KfkaPredicate
         return this;
     }
 
+    public com.google.common.base.Predicate<KfkaMessage> toGuavaPredicate()
+    {
+        return new com.google.common.base.Predicate<KfkaMessage>()
+        {
+            @SuppressWarnings("unchecked")
+            @Override
+            public boolean apply(KfkaMessage input)
+            {
+                if (topic != null && !topic.equalsIgnoreCase(input.getTopic()))
+                {
+                    return false;
+                }
+                
+                final Map<String, Comparable> queryableProperties = input.getPayload().getQueryableProperties();
+                if (! propertyMatch.isEmpty() && ! queryableProperties.isEmpty())
+                {
+                    for (Entry<String, Comparable> e : propertyMatch.entrySet())
+                    {
+                        final String propertyName = e.getKey();
+                        final Comparable propertyValue = e.getValue();
+                        final Comparable toMatch = queryableProperties.get(propertyName);
+                        if (toMatch != null && toMatch.compareTo(propertyValue) != 0)
+                        {
+                            return false;
+                        }
+                    }
+                }
+                
+                return true;
+            }
+        };
+    }
+
+    public Predicate<?,?> toHazelcastPredicate()
+    {
+        final List<Predicate<?,?>> predicates = new LinkedList<>();
+        
+        // Position
+        if (offsetId != null)
+        {
+            predicates.add(Predicates.greaterEqual("id", offsetId));
+        }
+        
+        // Topic
+        if (topic != null)
+        {
+            predicates.add(Predicates.equal("topic", topic));
+        }
+        
+        if (! propertyMatch.isEmpty())
+        {
+            for (Entry<String, Comparable> e : propertyMatch.entrySet())
+            {
+                predicates.add(Predicates.equal(e.getKey(), e.getValue()));
+            }
+        }
+        
+        return Predicates.and(predicates.toArray(new Predicate[predicates.size()]));
+    }
+
+    public KfkaPredicate propertyMatch(Map<String, Comparable> propertyMatch)
+    {
+        this.propertyMatch = propertyMatch;
+        return this;
+    }
 }

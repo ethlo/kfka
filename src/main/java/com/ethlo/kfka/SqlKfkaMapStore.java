@@ -4,7 +4,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,6 +19,7 @@ import com.alexkasko.springjdbc.iterable.CloseableIterable;
 import com.alexkasko.springjdbc.iterable.CloseableIterator;
 import com.alexkasko.springjdbc.iterable.IterableNamedParameterJdbcTemplate;
 
+@SuppressWarnings("rawtypes")
 public class SqlKfkaMapStore implements KfkaMapStore
 {
     private static final RowMapper<KfkaMessage> ROW_MAPPER = new RowMapper<KfkaMessage>()
@@ -28,18 +28,41 @@ public class SqlKfkaMapStore implements KfkaMapStore
         public KfkaMessage mapRow(ResultSet rs, int rowNum) throws SQLException
         {
             return new KfkaMessage.Builder()
-                 .message(rs.getString("message"))
-                 .organzationId(rs.getLong("organization_id"))
-                 .userId(rs.getLong("user_id"))
+                 .payload(rs.getBytes("payload"), extractExtra(rs))
                  .timestamp(rs.getLong("timestamp"))
                  .topic(rs.getString("topic"))
                  .type(rs.getString("type"))
                  .build().id(rs.getLong("id"));
         }
+
+        private Map<String, Comparable> extractExtra(ResultSet rs) throws SQLException
+        {
+            final List<String> extraColumns = new LinkedList<>();
+            for (int i = 0; i < rs.getMetaData().getColumnCount(); i++)
+            {
+                final String colName = rs.getMetaData().getColumnName(i);
+                if (colName.startsWith(FILTER_COLUMN_PREFIX))
+                {
+                    extraColumns.add(colName);
+                }
+            }
+            
+            if (! extraColumns.isEmpty())
+            {
+                final Map<String, Comparable> retVal = new TreeMap<>();
+                for (String colName : extraColumns)
+                {
+                    retVal.put(colName, (Comparable)rs.getObject(colName));
+                }
+            }
+            return Collections.emptyMap();
+        }
     };
 
-    private static final String INSERT_SQL = "INSERT INTO kfka (id, topic, type, timestamp, message, organization_id, user_id) "
-          + "VALUES(:id, :topic, :type, :timestamp, :message, :organization_id, :user_id)";
+    private static final String INSERT_SQL = "INSERT INTO kfka (id, topic, type, timestamp, payload) "
+          + "VALUES(:id, :topic, :type, :timestamp, :payload)";
+
+    private static final String FILTER_COLUMN_PREFIX = "filter_";
     
     private final IterableNamedParameterJdbcTemplate tpl;
     
@@ -111,12 +134,16 @@ public class SqlKfkaMapStore implements KfkaMapStore
     {
         final Map<String, Object> retVal = new TreeMap<>();
         retVal.put("id", value.getId());
-        retVal.put("message", value.getMessage());
+        retVal.put("payload", value.getPayload());
         retVal.put("type", value.getType());
         retVal.put("topic", value.getTopic());
-        retVal.put("user_id", value.getUserId());
-        retVal.put("organization_id", value.getOrganzationId());
-        retVal.put("timestamp", new Date(value.getTimestamp()));
+        retVal.put("timestamp", value.getTimestamp());
+        
+        for (Entry<String, Comparable> e : value.getQueryableProperties().entrySet())
+        {
+            retVal.put(FILTER_COLUMN_PREFIX + e.getKey(), e.getValue());
+        }
+        
         return retVal;
     }
 

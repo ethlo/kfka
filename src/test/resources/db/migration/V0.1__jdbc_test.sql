@@ -1,10 +1,9 @@
 CREATE TABLE `kfka` (
-  `id` bigint(20) NOT NULL,
-  `timestamp` timestamp NOT NULL,
-  `message` blob NOT NULL,
+  `id` bigint NOT NULL,
+  `timestamp` bigint NOT NULL,
+  `payload` blob NOT NULL,
   `topic` varchar(255) NOT NULL,
   `type` varchar(255) NOT NULL,
-  `organization_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
+  `filter_userId` int,
   PRIMARY KEY (`id`)
 );

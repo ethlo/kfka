@@ -1,12 +1,9 @@
 package com.ethlo.kfka;
 
 import java.util.AbstractMap;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +32,7 @@ public class KfkaManagerImpl implements KfkaManager
 {
     private final static Logger logger = LoggerFactory.getLogger(KfkaManagerImpl.class);
     
-    private Set<Entry<KfkaMessageListener, Predicate>> msgListeners = new LinkedHashSet<>();
+    private Set<Entry<KfkaMessageListener, KfkaPredicate>> msgListeners = new LinkedHashSet<>();
     private IMap<Long, KfkaMessage> messages;
     private IAtomicLong counter;
     private long ttlSeconds = 300;
@@ -47,7 +44,7 @@ public class KfkaManagerImpl implements KfkaManager
         cfg.getMapStoreConfig().setImplementation(mapStore);
         cfg.getMapStoreConfig().setEnabled(true);
         cfg.getMapStoreConfig().setWriteBatchSize(500);
-        cfg.getMapStoreConfig().setWriteDelaySeconds(3);
+        cfg.getMapStoreConfig().setWriteDelaySeconds(0);
         
         this.messages = hazelcastInstance.getMap("kfka");
         this.counter = hazelcastInstance.getAtomicLong("kfka");
@@ -57,13 +54,16 @@ public class KfkaManagerImpl implements KfkaManager
             @Override
             public void entryAdded(EntryEvent<Long, KfkaMessage> event)
             {
-                for (Entry<KfkaMessageListener, Predicate> e : msgListeners)
+                for (Entry<KfkaMessageListener, KfkaPredicate> e : msgListeners)
                 {
+                    final KfkaPredicate predicate = e.getValue();
+                    final KfkaMessage msg = event.getValue();
+                    
                     // Check if message should be included
-                    if (e.getValue().apply(new AbstractMap.SimpleEntry<>(event.getKey(), event.getValue())))
+                    if (predicate.toGuavaPredicate().apply(msg))
                     {
-                        // Wanted, notify listener
-                        e.getKey().onMessage(event.getValue());
+                        final KfkaMessageListener l = e.getKey();
+                        l.onMessage(event.getValue());
                     }
                 }
             }
@@ -79,7 +79,7 @@ public class KfkaManagerImpl implements KfkaManager
     
     public void addListener(KfkaMessageListener l)
     {
-        this.msgListeners.add(new AbstractMap.SimpleEntry(l,  Predicates.and()));
+        this.msgListeners.add(new AbstractMap.SimpleEntry<>(l,  new KfkaPredicate(this)));
     }
     
     @Override
@@ -130,9 +130,6 @@ public class KfkaManagerImpl implements KfkaManager
         return messages.aggregate(supplier, first ? Aggregations.longMin() : Aggregations.longMax());
     }
 
-    /* (non-Javadoc)
-     * @see com.ethlo.kfka.KfkaConsumer#findLatest(java.lang.String, java.lang.String)
-     */
     @Override
     public long findLatest(String topic, String type)
     {
@@ -148,35 +145,18 @@ public class KfkaManagerImpl implements KfkaManager
 
     public void addListener(KfkaMessageListener l, KfkaPredicate kfkaPredicate)
     {
-        final List<Predicate<?,?>> predicates = new LinkedList<>();
-        
-        // Position
-        final Long offsetId = kfkaPredicate.getOffsetId();
-        if (offsetId != null)
-        {
-            predicates.add(Predicates.greaterEqual("id", offsetId));
-        }
-        
-        // Topic
-        if (kfkaPredicate.getTopic() != null)
-        {
-            predicates.add(Predicates.equal("topic", kfkaPredicate.getTopic()));
-        }
-        
-        final Predicate<?,?> all = Predicates.and(predicates.toArray(new Predicate[predicates.size()]));
-        
         // Offset
         final Integer offset = kfkaPredicate.getOffset();
         PagingPredicate pagingPredicate; 
         int skip = 0;
         if (offset == null)
         {
-            pagingPredicate = new PagingPredicate(all, ORDER_BY_ID_DESCENDING, 1);
+            pagingPredicate = new PagingPredicate(kfkaPredicate.toHazelcastPredicate(), ORDER_BY_ID_DESCENDING, 1);
             skip = 1;
         }
         else
         {
-            pagingPredicate = new PagingPredicate(all, ORDER_BY_ID_DESCENDING, -offset);
+            pagingPredicate = new PagingPredicate(kfkaPredicate.toHazelcastPredicate(), ORDER_BY_ID_DESCENDING, -offset);
         }
             
         // Deliver all messages up until now
@@ -194,7 +174,7 @@ public class KfkaManagerImpl implements KfkaManager
                 .forEach(e -> l.onMessage(e));
         
         // Add to set of listeners, with the desired predicate
-        this.msgListeners.add(new AbstractMap.SimpleEntry<>(l, pagingPredicate));
+        this.msgListeners.add(new AbstractMap.SimpleEntry<>(l, kfkaPredicate));
     }
     
     @SuppressWarnings("rawtypes")
