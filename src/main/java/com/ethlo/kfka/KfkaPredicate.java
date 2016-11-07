@@ -119,8 +119,8 @@ public class KfkaPredicate implements Serializable
                     return false;
                 }
                 
-                final Map<String, Comparable> queryableProperties = input.getPayload().getQueryableProperties();
-                if (! propertyMatch.isEmpty() && ! queryableProperties.isEmpty())
+                final Map<String, Comparable> queryableProperties = KfkaMessage.getPropertyValues(input);
+                if (! propertyMatch.isEmpty() && !queryableProperties.isEmpty())
                 {
                     for (Entry<String, Comparable> e : propertyMatch.entrySet())
                     {

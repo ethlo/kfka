@@ -13,6 +13,7 @@ import java.util.TreeMap;
 
 import javax.sql.DataSource;
 
+import org.flywaydb.core.internal.util.StringUtils;
 import org.springframework.jdbc.core.RowMapper;
 
 import com.alexkasko.springjdbc.iterable.CloseableIterable;
@@ -22,17 +23,17 @@ import com.alexkasko.springjdbc.iterable.IterableNamedParameterJdbcTemplate;
 @SuppressWarnings("rawtypes")
 public class SqlKfkaMapStore implements KfkaMapStore
 {
-    private static final RowMapper<KfkaMessage> ROW_MAPPER = new RowMapper<KfkaMessage>()
+    private static final RowMapper<KfkaMessage.Builder> ROW_MAPPER = new RowMapper<KfkaMessage.Builder>()
     {
         @Override
-        public KfkaMessage mapRow(ResultSet rs, int rowNum) throws SQLException
+        public KfkaMessage.Builder mapRow(ResultSet rs, int rowNum) throws SQLException
         {
             return new KfkaMessage.Builder()
-                 .payload(rs.getBytes("payload"), extractExtra(rs))
+                 .payload(rs.getBytes("payload"))
                  .timestamp(rs.getLong("timestamp"))
                  .topic(rs.getString("topic"))
                  .type(rs.getString("type"))
-                 .build().id(rs.getLong("id"));
+                 .id(rs.getLong("id"));
         }
 
         private Map<String, Comparable> extractExtra(ResultSet rs) throws SQLException
@@ -59,9 +60,6 @@ public class SqlKfkaMapStore implements KfkaMapStore
         }
     };
 
-    private static final String INSERT_SQL = "INSERT INTO kfka (id, topic, type, timestamp, payload) "
-          + "VALUES(:id, :topic, :type, :timestamp, :payload)";
-
     private static final String FILTER_COLUMN_PREFIX = "filter_";
     
     private final IterableNamedParameterJdbcTemplate tpl;
@@ -74,7 +72,7 @@ public class SqlKfkaMapStore implements KfkaMapStore
     @Override
     public KfkaMessage load(Long key)
     {
-        final List<KfkaMessage> res = tpl.query("SELECT * from kfka WHERE id = :key", Collections.singletonMap("key", key), ROW_MAPPER);
+        final List<KfkaMessage> res = Collections.emptyList(); // tpl.query("SELECT * from kfka WHERE id = :key", Collections.singletonMap("key", key), ROW_MAPPER);
         if (! res.isEmpty())
         {
             return res.get(0);
@@ -85,7 +83,7 @@ public class SqlKfkaMapStore implements KfkaMapStore
     @Override
     public Map<Long, KfkaMessage> loadAll(Collection<Long> keys)
     {
-        final List<KfkaMessage> res = tpl.query("SELECT * FROM kfka WHERE id IN (:keys)", Collections.singletonMap("keys", keys), ROW_MAPPER);
+        final List<KfkaMessage> res = Collections.emptyList(); //tpl.query("SELECT * FROM kfka WHERE id IN (:keys)", Collections.singletonMap("keys", keys), ROW_MAPPER);
         final Map<Long, KfkaMessage> retVal = new HashMap<>(keys.size());
         res.forEach(e -> {retVal.put(e.getId(), e);});
         return retVal;
@@ -115,19 +113,36 @@ public class SqlKfkaMapStore implements KfkaMapStore
     public void store(Long key, KfkaMessage value)
     {
         final Map<String, ?> params = getInsertParams(value);
-        tpl.update(INSERT_SQL, params);
+        final String sql = getInsertSql(value);
+        tpl.update(sql, params);
+    }
+
+    private String getInsertSql(KfkaMessage value)
+    {
+        final Collection<String> extraProps = value.getQueryableProperties();
+        final String extraColsStr = (extraProps.isEmpty() ? "" : (", " + StringUtils.collectionToCommaDelimitedString(extraProps)));
+        final String extraColPlaceholdersStr = (extraProps.isEmpty() ? "" : (", :" + StringUtils.collectionToDelimitedString(extraProps, ", :")));
+        return "INSERT INTO kfka (id, topic, type, timestamp, payload" + extraColsStr + ")"
+                        + " VALUES(:id, :topic, :type, :timestamp, :payload" + extraColPlaceholdersStr + ")";
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public void storeAll(Map<Long, KfkaMessage> map)
     {
+        if (map.isEmpty())
+        {
+            return;
+        }
+        
+        final KfkaMessage first = map.values().iterator().next();
+        final String sql = getInsertSql(first);
         final List<Map<String, ?>> parameters = new LinkedList<>();
         for (Entry<Long, KfkaMessage> entry : map.entrySet())
         {
             parameters.add(getInsertParams(entry.getValue()));
         }
-        tpl.batchUpdate(INSERT_SQL, (Map<String, ?>[]) parameters.toArray(new Map[parameters.size()]));
+        tpl.batchUpdate(sql, (Map<String, ?>[]) parameters.toArray(new Map[parameters.size()]));
     }
 
     private Map<String, Object> getInsertParams(KfkaMessage value)
@@ -139,9 +154,10 @@ public class SqlKfkaMapStore implements KfkaMapStore
         retVal.put("topic", value.getTopic());
         retVal.put("timestamp", value.getTimestamp());
         
-        for (Entry<String, Comparable> e : value.getQueryableProperties().entrySet())
+        for (String propName : value.getQueryableProperties())
         {
-            retVal.put(FILTER_COLUMN_PREFIX + e.getKey(), e.getValue());
+            if (! retVal.containsKey(propName))
+            retVal.put(propName, KfkaMessage.getPropertyValue(value.getClass(), propName));
         }
         
         return retVal;

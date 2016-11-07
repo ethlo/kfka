@@ -35,7 +35,7 @@ public class KfkaApplicationTests
 
         for (int i = 0; i < 1_000; i++)
         {
-            kfkaManager.add(new KfkaMessage.Builder().payload("" + i).timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype").build());
+            kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("" + i).timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype")));
         }
 
         final List<KfkaMessage> received = new LinkedList<>();
@@ -49,11 +49,11 @@ public class KfkaApplicationTests
             }
         }, new KfkaPredicate(kfkaManager).offset(-1));
 
-        kfkaManager.add(new KfkaMessage.Builder().payload("myMessage").timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage").timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype")));
 
         assertThat(received).hasSize(2);
-        assertThat(received.get(0).getPayload().getData()).isEqualTo("999".getBytes());
-        assertThat(received.get(1).getPayload().getData()).isEqualTo("myMessage".getBytes());
+        assertThat(received.get(0).getPayload()).isEqualTo("999".getBytes());
+        assertThat(received.get(1).getPayload()).isEqualTo("myMessage".getBytes());
     }
 
     @Test
@@ -61,10 +61,10 @@ public class KfkaApplicationTests
     {
         kfkaManager.clearAll();
 
-        kfkaManager.add(new KfkaMessage.Builder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
-        kfkaManager.add(new KfkaMessage.Builder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
-        kfkaManager.add(new KfkaMessage.Builder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype").build());
-        kfkaManager.add(new KfkaMessage.Builder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype")));
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype")));
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype")));
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype")));
 
         final List<KfkaMessage> received = new LinkedList<>();
         new KfkaPredicate(kfkaManager).topic("bar").seekToBeginning().addListener(new KfkaMessageListener()
@@ -85,10 +85,10 @@ public class KfkaApplicationTests
     public void testQueryWithRelativeOffsetFilteredByTopic() throws InterruptedException
     {
         kfkaManager.clearAll();
-        kfkaManager.add(new KfkaMessage.Builder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
-        kfkaManager.add(new KfkaMessage.Builder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
-        kfkaManager.add(new KfkaMessage.Builder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype").build());
-        kfkaManager.add(new KfkaMessage.Builder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype")));
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype")));
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype")));
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype")));
 
         final List<KfkaMessage> received = new LinkedList<>();
         new KfkaPredicate(kfkaManager).topic("bar").offset(-1).addListener(new KfkaMessageListener()
@@ -112,22 +112,21 @@ public class KfkaApplicationTests
         kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage1")
             .timestamp(System.currentTimeMillis())
             .topic("bar")
-            .type("mytype")
-            .build())
+            .type("mytype"))
             .setUserId(321));
         
         kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder()
             .payload("myMessage2")
             .timestamp(System.currentTimeMillis())
             .topic("bar")
-            .type("mytype")
-            .build())
+            .type("mytype"))
             .setUserId(123));
-
+        
         final List<KfkaMessage> received = new LinkedList<>();
-        new KfkaPredicate(kfkaManager).topic("bar")
-            .propertyMatch(Collections.singletonMap("userId", 123))
+        new KfkaPredicate(kfkaManager)
+            .topic("bar")
             .offset(-10)
+            .propertyMatch(Collections.singletonMap("userId", 123))
             .addListener(new KfkaMessageListener()
             {
                 @Override
@@ -144,9 +143,15 @@ public class KfkaApplicationTests
             .payload("myMessage3")
             .timestamp(System.currentTimeMillis())
             .topic("bar")
-            .type("mytype")
-            .build())
+            .type("mytype"))
             .setUserId(123));
+        
+        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder()
+            .payload("myMessage4")
+            .timestamp(System.currentTimeMillis())
+            .topic("bar")
+            .type("mytype"))
+            .setUserId(321));
 
         Thread.sleep(100);
         

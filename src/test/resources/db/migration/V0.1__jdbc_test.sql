@@ -4,6 +4,6 @@ CREATE TABLE `kfka` (
   `payload` blob NOT NULL,
   `topic` varchar(255) NOT NULL,
   `type` varchar(255) NOT NULL,
-  `filter_userId` int,
+  `userId` int,
   PRIMARY KEY (`id`)
 );

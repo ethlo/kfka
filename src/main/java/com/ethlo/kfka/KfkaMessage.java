@@ -1,21 +1,26 @@
 package com.ethlo.kfka;
 
 import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.springframework.util.Assert;
 
+import com.google.common.base.Throwables;
+
 @SuppressWarnings("rawtypes")
-public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
+public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessage>
 {
     private static final long serialVersionUID = 3209315651061823360L;
-    
+
     private String topic;
     private long timestamp;
-    private KfkaPayload payload;
+    private byte[] payload;
     private String type;
-
-    private long id;
+    private Long id;
 
     public String getTopic()
     {
@@ -27,7 +32,7 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
         return timestamp;
     }
 
-    public KfkaPayload getPayload()
+    public byte[] getPayload()
     {
         return payload;
     }
@@ -36,13 +41,14 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
     {
         return type;
     }
-    
+
     public static class Builder
     {
         private String topic;
         private long timestamp;
-        private KfkaPayload payload;
+        private byte[] payload;
         private String type;
+        private Long id;
 
         public Builder topic(String topic)
         {
@@ -58,20 +64,14 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
 
         public Builder payload(String message)
         {
-            this.payload = new KfkaPayload(message);
+            this.payload = message.getBytes(StandardCharsets.UTF_8);
             return this;
         }
-        
-        public Builder payload(String message, Map<String, Comparable> queryableProperties)
+
+        public Builder payload(byte[] payload)
         {
-            this.payload = new KfkaPayload(message, queryableProperties);
+            this.payload = payload;
             return this;
-        }
-        
-        public Builder payload(byte[] payload, Map<String, Comparable> queryableProperties)
-        {
-            this.payload = new KfkaPayload(payload, queryableProperties);
-            return this;            
         }
 
         public Builder type(String type)
@@ -80,14 +80,9 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
             return this;
         }
 
-        public KfkaMessage build()
+        public Builder id(Long id)
         {
-            return new KfkaMessage(this);
-        }
-
-        public Builder payload(KfkaPayload payload)
-        {
-            this.payload = payload;
+            this.id = id;
             return this;
         }
     }
@@ -98,11 +93,12 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
         Assert.notNull(builder.type);
         Assert.notNull(builder.timestamp);
         Assert.notNull(builder.payload);
-        
+
         this.topic = builder.topic;
         this.timestamp = builder.timestamp;
         this.payload = builder.payload;
         this.type = builder.type;
+        this.id = builder.id;
     }
 
     @Override
@@ -129,8 +125,43 @@ public class KfkaMessage implements Serializable, Comparable<KfkaMessage>
         return this.id;
     }
 
-    public Map<String, Comparable> getQueryableProperties()
+    public abstract Collection<String> getQueryableProperties();
+
+    public static Object getPropertyValue(Object object, String propertyName)
     {
-        return this.payload.getQueryableProperties();
+        Field field;
+        try
+        {
+            field = object.getClass().getDeclaredField(propertyName);
+            field.setAccessible(true);
+            return field.get(object);
+        }
+        catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException exc)
+        {
+            return null;
+        }
+    }
+
+    public static Map<String, Comparable> getPropertyValues(Object object)
+    {
+        try
+        {
+            final Field[] fields = object.getClass().getDeclaredFields();
+            final Map<String, Comparable> queryableFields = new TreeMap<>();
+            for (Field field : fields)
+            {
+                if (Comparable.class.isAssignableFrom(field.getType()))
+                {
+                    field.setAccessible(true);
+                    final Object o = field.get(object);
+                    queryableFields.put(field.getName(), Comparable.class.cast(o));
+                }
+            }
+            return queryableFields;
+        }
+        catch (SecurityException | IllegalArgumentException | IllegalAccessException exc)
+        {
+            throw Throwables.propagate(exc);
+        } 
     }
 }
