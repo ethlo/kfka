@@ -3,9 +3,12 @@ package com.ethlo.kfka;
 import java.util.AbstractMap;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -13,9 +16,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import com.acme.CustomKfkaMessage;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterators;
 import com.hazelcast.config.EvictionPolicy;
 import com.hazelcast.config.MapConfig;
+import com.hazelcast.config.MapStoreConfig;
+import com.hazelcast.config.MapStoreConfig.InitialLoadMode;
 import com.hazelcast.core.EntryEvent;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IAtomicLong;
@@ -36,18 +43,24 @@ public class KfkaManagerImpl implements KfkaManager
     private IMap<Long, KfkaMessage> messages;
     private IAtomicLong counter;
     private long ttlSeconds = 300;
+
+    private KfkaMapStore<CustomKfkaMessage> mapStore;
     
-    public KfkaManagerImpl(HazelcastInstance hazelcastInstance, KfkaMapStore mapStore, KfkaCounterStore counterStore)
+    public KfkaManagerImpl(HazelcastInstance hazelcastInstance, KfkaMapStore<CustomKfkaMessage> mapStore, KfkaCounterStore counterStore)
     {
-        final MapConfig cfg = hazelcastInstance.getConfig().getMapConfig("kfka");
+        final String name = "kfka";
+        final MapConfig cfg = hazelcastInstance.getConfig().getMapConfig(name);
         cfg.setEvictionPolicy(EvictionPolicy.NONE);
-        cfg.getMapStoreConfig().setImplementation(mapStore);
-        cfg.getMapStoreConfig().setEnabled(true);
-        cfg.getMapStoreConfig().setWriteBatchSize(500);
-        cfg.getMapStoreConfig().setWriteDelaySeconds(0);
+        final MapStoreConfig mapCfg = cfg.getMapStoreConfig();
+        mapCfg.setImplementation(mapStore);
+        mapCfg.setEnabled(true);
+        mapCfg.setWriteBatchSize(500);
+        mapCfg.setWriteDelaySeconds(3);
+        mapCfg.setInitialLoadMode(InitialLoadMode.EAGER);
         
-        this.messages = hazelcastInstance.getMap("kfka");
-        this.counter = hazelcastInstance.getAtomicLong("kfka");
+        this.mapStore = mapStore;
+        this.messages = hazelcastInstance.getMap(name);
+        this.counter = hazelcastInstance.getAtomicLong(name);
         
         messages.addEntryListener(new EntryAddedListener<Long, KfkaMessage>()
         {
@@ -191,5 +204,18 @@ public class KfkaManagerImpl implements KfkaManager
     public void clearCache()
     {
         this.messages.evictAll();
+        logger.info("Evicted all entries");
+    }
+
+    @Override
+    public long loadAll()
+    {
+        final int batchSize = 500;
+        final Iterator<List<Long>> iter = Iterators.partition(mapStore.loadAllKeys().iterator(), batchSize);
+        while (iter.hasNext())
+        {
+            messages.getAll(new TreeSet<>(iter.next()));
+        }
+        return messages.size();
     }
 }

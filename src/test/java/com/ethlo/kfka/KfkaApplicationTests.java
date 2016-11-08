@@ -51,6 +51,8 @@ public class KfkaApplicationTests
 
         kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage").timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype")));
 
+        Thread.sleep(100);
+        
         assertThat(received).hasSize(2);
         assertThat(received.get(0).getPayload()).isEqualTo("999".getBytes());
         assertThat(received.get(1).getPayload()).isEqualTo("myMessage".getBytes());
@@ -158,10 +160,51 @@ public class KfkaApplicationTests
     {
         kfkaManager.clearAll();
         kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype")));
-        Thread.sleep(10000);
         kfkaManager.clearCache();
+        Thread.sleep(4000);
+        long count = kfkaManager.loadAll();
+        assertThat(count).isEqualTo(1);
         final CollectingListener l = new CollectingListener();
         kfkaManager.addListener(l, KfkaPredicate.rewind(kfkaManager, 1));
         assertThat(l.getReceived()).hasSize(1);
+    }
+    
+    @Test
+    public void testPerformance1() throws InterruptedException
+    {
+        kfkaManager.clearAll();
+        
+        final int count = 10_000;
+        
+        for (int i = 1; i <= count; i++)
+        {
+            kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("otherMessage" + i)
+                .timestamp(System.currentTimeMillis())
+                .topic("bar")
+                .type("mytype"))
+                .setUserId(321));
+        }
+        
+        for (int i = 1; i <= count; i++)
+        {
+            
+            kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder()
+                .payload("myMessage" + 1)
+                .timestamp(System.currentTimeMillis())
+                .topic("bar")
+                .type("mytype"))
+                .setUserId(123));
+        }
+            
+        final CollectingListener collListener = new CollectingListener();
+        new KfkaPredicate(kfkaManager)
+            .topic("bar")
+            .offset(-(count + 10))
+            .propertyMatch(Collections.singletonMap("userId", 123))
+            .addListener(collListener);
+
+        assertThat(collListener.getReceived()).hasSize(count);
+        assertThat(collListener.getReceived().get(0).getId()).isEqualTo(count + 1);
+        assertThat(collListener.getReceived().get(count-1).getId()).isEqualTo(count + count);
     }
 }

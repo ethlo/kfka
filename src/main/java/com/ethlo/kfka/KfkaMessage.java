@@ -1,5 +1,6 @@
 package com.ethlo.kfka;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -10,9 +11,12 @@ import java.util.TreeMap;
 import org.springframework.util.Assert;
 
 import com.google.common.base.Throwables;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.DataSerializable;
 
 @SuppressWarnings("rawtypes")
-public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessage>
+public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessage>, DataSerializable
 {
     private static final long serialVersionUID = 3209315651061823360L;
 
@@ -89,6 +93,11 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
 
     protected KfkaMessage(Builder builder)
     {
+        if (builder == null)
+        {
+            return;
+        }
+        
         Assert.notNull(builder.topic);
         Assert.notNull(builder.type);
         Assert.notNull(builder.timestamp);
@@ -164,4 +173,32 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
             throw Throwables.propagate(exc);
         } 
     }
+    
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException
+    {
+        out.writeLong(id);
+        out.writeUTF(topic);
+        out.writeUTF(type);
+        out.writeLong(timestamp);
+        out.writeByteArray(payload);
+
+        doWriteData(out);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException
+    {
+        id = in.readLong();
+        topic = in.readUTF();
+        type = in.readUTF();
+        timestamp = in.readLong();
+        payload = in.readByteArray();
+        
+        doReadData(in);  
+    }  
+
+    protected abstract void doWriteData(ObjectDataOutput out) throws IOException;
+
+    protected abstract void doReadData(ObjectDataInput in) throws IOException;
 }

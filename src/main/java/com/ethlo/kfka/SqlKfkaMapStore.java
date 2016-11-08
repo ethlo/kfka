@@ -14,6 +14,8 @@ import java.util.TreeMap;
 import javax.sql.DataSource;
 
 import org.flywaydb.core.internal.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.RowMapper;
 
 import com.alexkasko.springjdbc.iterable.CloseableIterable;
@@ -22,6 +24,8 @@ import com.alexkasko.springjdbc.iterable.IterableNamedParameterJdbcTemplate;
 
 public class SqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
 {
+    private final static Logger logger = LoggerFactory.getLogger(SqlKfkaMapStore.class);
+    
     private final IterableNamedParameterJdbcTemplate tpl;
     private RowMapper<T> mapper;
     
@@ -34,6 +38,7 @@ public class SqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
     @Override
     public T load(Long key)
     {
+        logger.debug("Loading for key {}", key);
         final List<T> res = tpl.query("SELECT * from kfka WHERE id = :key", Collections.singletonMap("key", key), mapper);
         if (! res.isEmpty())
         {
@@ -45,6 +50,7 @@ public class SqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
     @Override
     public Map<Long, T> loadAll(Collection<Long> keys)
     {
+        logger.debug("Loading for keys {}", StringUtils.collectionToCommaDelimitedString(keys));
         final List<T> res = tpl.query("SELECT * FROM kfka WHERE id IN (:keys)", Collections.singletonMap("keys", keys), mapper);
         final Map<Long, T> retVal = new HashMap<>(keys.size());
         res.forEach(e -> {retVal.put(e.getId(), e);});

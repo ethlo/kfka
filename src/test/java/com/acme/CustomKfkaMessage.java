@@ -1,15 +1,23 @@
 package com.acme;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
 import com.ethlo.kfka.KfkaMessage;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
 
 public class CustomKfkaMessage extends KfkaMessage
 {
     private static final long serialVersionUID = 443035395722534117L;
     private Integer userId;
 
+    private CustomKfkaMessage()
+    {
+        super(null);
+    }
+    
     public CustomKfkaMessage(KfkaMessage.Builder builder)
     {
         super(builder);
@@ -30,5 +38,18 @@ public class CustomKfkaMessage extends KfkaMessage
     public Collection<String> getQueryableProperties()
     {
         return Arrays.asList("userId");
+    }
+
+    @Override
+    protected void doWriteData(ObjectDataOutput out) throws IOException
+    {
+        out.writeInt(userId != null ? userId : 0);
+    }
+
+    @Override
+    public void doReadData(ObjectDataInput in) throws IOException
+    {
+        final int i = in.readInt();
+        this.userId = i > 0 ? i : null;  
     }   
 }
