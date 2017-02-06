@@ -18,9 +18,28 @@ public class CustomKfkaMessage extends KfkaMessage
         super(null);
     }
     
-    public CustomKfkaMessage(KfkaMessage.Builder builder)
+    public CustomKfkaMessage(CustomKfkaMessageBuilder builder)
     {
         super(builder);
+        this.userId = builder.userId;
+    }
+    
+    public static class CustomKfkaMessageBuilder extends KfkaMessage.Builder
+    {
+        private int userId;
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public KfkaMessage build()
+        {
+            return new CustomKfkaMessage(this);
+        }
+
+        public CustomKfkaMessageBuilder userId(int userId)
+        {
+            this.userId = userId;
+            return this;
+        }
     }
     
     public CustomKfkaMessage setUserId(Integer userId)

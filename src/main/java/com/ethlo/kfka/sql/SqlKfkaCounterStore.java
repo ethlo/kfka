@@ -1,10 +1,12 @@
-package com.ethlo.kfka;
+package com.ethlo.kfka.sql;
 
 import java.util.Collections;
 
 import javax.sql.DataSource;
 
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
+import com.ethlo.kfka.KfkaCounterStore;
 
 public class SqlKfkaCounterStore implements KfkaCounterStore
 {

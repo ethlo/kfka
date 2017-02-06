@@ -11,6 +11,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.RowMapper;
 
 import com.acme.CustomKfkaMessage;
+import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
+import com.ethlo.kfka.sql.SqlKfkaCounterStore;
+import com.ethlo.kfka.sql.SqlKfkaMapStore;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
@@ -46,13 +49,14 @@ public class TestCfg
             @Override
             public CustomKfkaMessage mapRow(ResultSet rs, int rowNum) throws SQLException
             {
-                return new CustomKfkaMessage(new KfkaMessage.Builder()
+                return new CustomKfkaMessageBuilder()
+                     .userId(rs.getInt("userId"))
                      .payload(rs.getBytes("payload"))
                      .timestamp(rs.getLong("timestamp"))
                      .topic(rs.getString("topic"))
                      .type(rs.getString("type"))
-                     .id(rs.getLong("id")))
-                     .setUserId(rs.getInt("userId"));
+                     .id(rs.getLong("id"))
+                     .build();
             }
         };
         

@@ -16,7 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import com.acme.CustomKfkaMessage;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
 import com.hazelcast.config.EvictionPolicy;
@@ -44,9 +43,9 @@ public class KfkaManagerImpl implements KfkaManager
     private IAtomicLong counter;
     private long ttlSeconds = 300;
 
-    private KfkaMapStore<CustomKfkaMessage> mapStore;
+    private KfkaMapStore<? extends KfkaMessage> mapStore;
     
-    public KfkaManagerImpl(HazelcastInstance hazelcastInstance, KfkaMapStore<CustomKfkaMessage> mapStore, KfkaCounterStore counterStore)
+    public KfkaManagerImpl(HazelcastInstance hazelcastInstance, KfkaMapStore<? extends KfkaMessage> mapStore, KfkaCounterStore counterStore)
     {
         final String name = "kfka";
         final MapConfig cfg = hazelcastInstance.getConfig().getMapConfig(name);

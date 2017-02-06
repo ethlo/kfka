@@ -1,4 +1,4 @@
-package com.ethlo.kfka;
+package com.ethlo.kfka.sql;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -21,6 +21,8 @@ import org.springframework.jdbc.core.RowMapper;
 import com.alexkasko.springjdbc.iterable.CloseableIterable;
 import com.alexkasko.springjdbc.iterable.CloseableIterator;
 import com.alexkasko.springjdbc.iterable.IterableNamedParameterJdbcTemplate;
+import com.ethlo.kfka.KfkaMapStore;
+import com.ethlo.kfka.KfkaMessage;
 
 public class SqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
 {

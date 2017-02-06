@@ -13,7 +13,7 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import com.acme.CustomKfkaMessage;
+import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestCfg.class)
@@ -35,7 +35,7 @@ public class KfkaApplicationTests
 
         for (int i = 0; i < 1_000; i++)
         {
-            kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("" + i).timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype")));
+            kfkaManager.add(new CustomKfkaMessageBuilder().payload("" + i).timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype").build());
         }
 
         final List<KfkaMessage> received = new LinkedList<>();
@@ -49,7 +49,7 @@ public class KfkaApplicationTests
             }
         }, new KfkaPredicate(kfkaManager).offset(-1));
 
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage").timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype")));
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage").timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype").build());
 
         Thread.sleep(100);
         
@@ -63,10 +63,10 @@ public class KfkaApplicationTests
     {
         kfkaManager.clearAll();
 
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype")));
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype")));
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype")));
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype")));
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
 
         final List<KfkaMessage> received = new LinkedList<>();
         new KfkaPredicate(kfkaManager).topic("bar").seekToBeginning().addListener(new KfkaMessageListener()
@@ -87,10 +87,10 @@ public class KfkaApplicationTests
     public void testQueryWithRelativeOffsetFilteredByTopic() throws InterruptedException
     {
         kfkaManager.clearAll();
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype")));
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype")));
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype")));
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype")));
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
 
         final List<KfkaMessage> received = new LinkedList<>();
         new KfkaPredicate(kfkaManager).topic("bar").offset(-1).addListener(new KfkaMessageListener()
@@ -111,18 +111,21 @@ public class KfkaApplicationTests
     {
         kfkaManager.clearAll();
         
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage1")
+        kfkaManager.add(new CustomKfkaMessageBuilder()
+            .userId(321)
+            .payload("myMessage1")
             .timestamp(System.currentTimeMillis())
             .topic("bar")
-            .type("mytype"))
-            .setUserId(321));
+            .type("mytype")
+            .build());
         
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder()
+        kfkaManager.add(new CustomKfkaMessageBuilder()
+            .userId(123)
             .payload("myMessage2")
             .timestamp(System.currentTimeMillis())
             .topic("bar")
-            .type("mytype"))
-            .setUserId(123));
+            .type("mytype")
+            .build());
         
         final CollectingListener collListener = new CollectingListener();
         new KfkaPredicate(kfkaManager)
@@ -134,19 +137,21 @@ public class KfkaApplicationTests
         assertThat(collListener.getReceived()).hasSize(1);
         assertThat(collListener.getReceived().get(0).getId()).isEqualTo(2);
         
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder()
+        kfkaManager.add(new CustomKfkaMessageBuilder()
+            .userId(123)
             .payload("myMessage3")
             .timestamp(System.currentTimeMillis())
             .topic("bar")
-            .type("mytype"))
-            .setUserId(123));
+            .type("mytype")
+            .build());
         
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder()
+        kfkaManager.add(new CustomKfkaMessageBuilder()
+            .userId(321)
             .payload("myMessage4")
             .timestamp(System.currentTimeMillis())
             .topic("bar")
-            .type("mytype"))
-            .setUserId(321));
+            .type("mytype")
+            .build());
 
         // Need to allow asynchronous messages propagate
         Thread.sleep(100);
@@ -159,7 +164,7 @@ public class KfkaApplicationTests
     public void testMessagesPersisted() throws InterruptedException
     {
         kfkaManager.clearAll();
-        kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype")));
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
         kfkaManager.clearCache();
         Thread.sleep(4000);
         long count = kfkaManager.loadAll();
@@ -178,22 +183,25 @@ public class KfkaApplicationTests
         
         for (int i = 1; i <= count; i++)
         {
-            kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder().payload("otherMessage" + i)
+            kfkaManager.add(new CustomKfkaMessageBuilder()
+                .userId(321)
+                .payload("otherMessage" + i)
                 .timestamp(System.currentTimeMillis())
                 .topic("bar")
-                .type("mytype"))
-                .setUserId(321));
+                .type("mytype")
+                .build());
         }
         
         for (int i = 1; i <= count; i++)
         {
             
-            kfkaManager.add(new CustomKfkaMessage(new KfkaMessage.Builder()
+            kfkaManager.add(new CustomKfkaMessageBuilder()
+                .userId(123)
                 .payload("myMessage" + 1)
                 .timestamp(System.currentTimeMillis())
                 .topic("bar")
-                .type("mytype"))
-                .setUserId(123));
+                .type("mytype")
+                .build());
         }
             
         final CollectingListener collListener = new CollectingListener();

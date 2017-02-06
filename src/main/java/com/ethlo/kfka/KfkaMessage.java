@@ -46,7 +46,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         return type;
     }
 
-    public static class Builder
+    public abstract static class Builder
     {
         private String topic;
         private long timestamp;
@@ -89,6 +89,8 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
             this.id = id;
             return this;
         }
+        
+        public abstract <T extends KfkaMessage> T build();
     }
 
     protected KfkaMessage(Builder builder)
