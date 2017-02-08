@@ -2,6 +2,7 @@ package com.ethlo.kfka;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
@@ -66,6 +67,6 @@ public class TestCfg
     @Bean
     public KfkaManager kfkaConsumer(HazelcastInstance hazelcastInstance, KfkaMapStore<CustomKfkaMessage> mapStore, KfkaCounterStore counterStore)
     {
-        return new KfkaManagerImpl(hazelcastInstance, mapStore, counterStore);
+        return new KfkaManagerImpl(hazelcastInstance, mapStore, counterStore, new KfkaConfig().ttl(300, TimeUnit.SECONDS).name("kfka"));
     }
 }
