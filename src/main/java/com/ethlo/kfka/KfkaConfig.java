@@ -7,7 +7,7 @@ public class KfkaConfig
     private String name = "kfka";
     private long ttlMillis = 0;
     private int writeDelay = 0;
-    private int batchSize;
+    private int batchSize = 100;
 
     public KfkaConfig ttl(long duration, TimeUnit unit)
     {
