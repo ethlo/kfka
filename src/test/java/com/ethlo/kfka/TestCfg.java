@@ -31,6 +31,7 @@ public class TestCfg
     public static Flyway flyway(DataSource ds)
     {
         final Flyway flyway = new Flyway();
+        flyway.setLocations("db/testmigrations");
         flyway.setDataSource(ds);
         flyway.migrate();
         return flyway;
@@ -67,6 +68,10 @@ public class TestCfg
     @Bean
     public KfkaManager kfkaConsumer(HazelcastInstance hazelcastInstance, KfkaMapStore<CustomKfkaMessage> mapStore, KfkaCounterStore counterStore)
     {
-        return new KfkaManagerImpl(hazelcastInstance, mapStore, counterStore, new KfkaConfig().ttl(300, TimeUnit.SECONDS).name("kfka"));
+        return new KfkaManagerImpl(hazelcastInstance, mapStore, counterStore, 
+            new KfkaConfig()
+                .ttl(300, TimeUnit.SECONDS)
+                .name("kfka")
+                .writeDelay(1));
     }
 }

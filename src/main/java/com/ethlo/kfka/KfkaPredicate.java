@@ -26,7 +26,7 @@ public class KfkaPredicate implements Serializable
     // Support custom properties
     private Map<String, Comparable> propertyMatch = new TreeMap<>();
     
-    KfkaPredicate(KfkaManager kfkaManager)
+    public KfkaPredicate(KfkaManager kfkaManager)
     {
         this.kfkaManager = kfkaManager;
     }
@@ -47,9 +47,10 @@ public class KfkaPredicate implements Serializable
         return this;
     }
     
-    public void seek(long offsetId)
+    public KfkaPredicate seek(long offsetId)
     {
         this.offsetId = offsetId;
+        return this;
     }
     
     public void seekToEnd()

@@ -8,18 +8,24 @@ import java.util.List;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.util.StopWatch;
 
 import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
+import com.google.common.base.Stopwatch;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestCfg.class)
 @EnableAutoConfiguration
 public class KfkaApplicationTests
 {
+    private final Logger logger = LoggerFactory.getLogger(KfkaApplicationTests.class);
+    
     @Autowired
     private KfkaManager kfkaManager;
 
@@ -166,7 +172,7 @@ public class KfkaApplicationTests
         kfkaManager.clearAll();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
         kfkaManager.clearCache();
-        Thread.sleep(4000);
+        Thread.sleep(2000);
         long count = kfkaManager.loadAll();
         assertThat(count).isEqualTo(1);
         final CollectingListener l = new CollectingListener();
@@ -180,7 +186,8 @@ public class KfkaApplicationTests
         kfkaManager.clearAll();
         
         final int count = 10_000;
-        
+        final StopWatch sw = new StopWatch();
+        sw.start("Insert1");
         for (int i = 1; i <= count; i++)
         {
             kfkaManager.add(new CustomKfkaMessageBuilder()
@@ -191,10 +198,11 @@ public class KfkaApplicationTests
                 .type("mytype")
                 .build());
         }
-        
+        sw.stop();
+
+        sw.start("Insert2");
         for (int i = 1; i <= count; i++)
         {
-            
             kfkaManager.add(new CustomKfkaMessageBuilder()
                 .userId(123)
                 .payload("myMessage" + 1)
@@ -203,16 +211,19 @@ public class KfkaApplicationTests
                 .type("mytype")
                 .build());
         }
+        sw.stop();
             
+        sw.start("Query");
         final CollectingListener collListener = new CollectingListener();
         new KfkaPredicate(kfkaManager)
             .topic("bar")
             .offset(-(count + 10))
             .propertyMatch(Collections.singletonMap("userId", 123))
             .addListener(collListener);
-
+        sw.stop();
         assertThat(collListener.getReceived()).hasSize(count);
         assertThat(collListener.getReceived().get(0).getId()).isEqualTo(count + 1);
         assertThat(collListener.getReceived().get(count-1).getId()).isEqualTo(count + count);
+        logger.info("Timings: {}", sw);
     }
 }

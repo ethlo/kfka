@@ -52,7 +52,7 @@ public class SqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
     @Override
     public Map<Long, T> loadAll(Collection<Long> keys)
     {
-        logger.debug("Loading for keys {}", StringUtils.collectionToCommaDelimitedString(keys));
+        logger.debug("Loading data for keys {}", StringUtils.collectionToCommaDelimitedString(keys));
         final List<T> res = tpl.query("SELECT * FROM kfka WHERE id IN (:keys)", Collections.singletonMap("keys", keys), mapper);
         final Map<Long, T> retVal = new HashMap<>(keys.size());
         res.forEach(e -> {retVal.put(e.getId(), e);});
