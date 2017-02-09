@@ -23,7 +23,7 @@ import com.hazelcast.core.HazelcastInstance;
 @Configuration
 public class TestCfg
 {
-    @Bean
+    @Bean(destroyMethod="shutdown")
     public HazelcastInstance hazelcastInstance()
     {
         return Hazelcast.newHazelcastInstance();
@@ -74,7 +74,7 @@ public class TestCfg
             new KfkaConfig()
                 .ttl(300, TimeUnit.SECONDS)
                 .name("kfka")
-                .writeDelay(1)
+                .writeDelay(0)
                 .batchSize(250));
     }
 }
