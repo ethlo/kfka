@@ -1,4 +1,4 @@
-package com.ethlo.kfka.sql;
+package com.ethlo.kfka.persistence.sql;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -13,16 +13,16 @@ import java.util.TreeMap;
 
 import javax.sql.DataSource;
 
-import org.flywaydb.core.internal.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.util.StringUtils;
 
 import com.alexkasko.springjdbc.iterable.CloseableIterable;
 import com.alexkasko.springjdbc.iterable.CloseableIterator;
 import com.alexkasko.springjdbc.iterable.IterableNamedParameterJdbcTemplate;
-import com.ethlo.kfka.KfkaMapStore;
 import com.ethlo.kfka.KfkaMessage;
+import com.ethlo.kfka.persistence.KfkaMapStore;
 
 public class SqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
 {

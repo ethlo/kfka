@@ -1,4 +1,4 @@
-package com.ethlo.kfka;
+package com.ethlo.kfka.persistence;
 
 public interface KfkaCounterStore
 {

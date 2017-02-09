@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -17,7 +18,6 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.StopWatch;
 
 import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
-import com.google.common.base.Stopwatch;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestCfg.class)
@@ -170,9 +170,12 @@ public class KfkaApplicationTests
     public void testMessagesPersisted() throws InterruptedException
     {
         kfkaManager.clearAll();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
+             .timestamp(System.currentTimeMillis())
+             .topic("foo")
+             .type("mytype").build());
         kfkaManager.clearCache();
-        Thread.sleep(2000);
+        Thread.sleep(1000);
         long count = kfkaManager.loadAll();
         assertThat(count).isEqualTo(1);
         final CollectingListener l = new CollectingListener();
@@ -180,6 +183,7 @@ public class KfkaApplicationTests
         assertThat(l.getReceived()).hasSize(1);
     }
     
+    @Ignore
     @Test
     public void testPerformance1() throws InterruptedException
     {

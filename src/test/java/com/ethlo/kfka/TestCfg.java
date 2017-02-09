@@ -13,8 +13,10 @@ import org.springframework.jdbc.core.RowMapper;
 
 import com.acme.CustomKfkaMessage;
 import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
-import com.ethlo.kfka.sql.SqlKfkaCounterStore;
-import com.ethlo.kfka.sql.SqlKfkaMapStore;
+import com.ethlo.kfka.persistence.KfkaCounterStore;
+import com.ethlo.kfka.persistence.KfkaMapStore;
+import com.ethlo.kfka.persistence.sql.SqlKfkaCounterStore;
+import com.ethlo.kfka.persistence.sql.SqlKfkaMapStore;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
@@ -72,6 +74,7 @@ public class TestCfg
             new KfkaConfig()
                 .ttl(300, TimeUnit.SECONDS)
                 .name("kfka")
-                .writeDelay(1));
+                .writeDelay(1)
+                .batchSize(250));
     }
 }

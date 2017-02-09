@@ -15,6 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import com.ethlo.kfka.persistence.KfkaCounterStore;
+import com.ethlo.kfka.persistence.KfkaMapStore;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
 import com.hazelcast.config.EvictionPolicy;
