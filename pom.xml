@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.ethlo.kfka</groupId>
 	<artifactId>kfka</artifactId>
-	<version>0.1-SNAPSHOT</version>
+	<version>0.2-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>kfka</name>
 	<description>Persistent Event Queue </description>
@@ -26,6 +26,19 @@
 		</repository>
 	</distributionManagement>
 	<build>
+		<plugins>
+		<plugin>
+			<artifactId>maven-source-plugin</artifactId>
+			<executions>
+				<execution>
+					<id>attach-sources</id>
+					<goals>
+						<goal>jar</goal>
+					</goals>
+				</execution>
+			</executions>
+		</plugin>
+		</plugins>
 		<extensions>
 			<extension>
 				<groupId>org.apache.maven.wagon</groupId>
