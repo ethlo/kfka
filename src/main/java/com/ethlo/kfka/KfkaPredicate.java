@@ -1,5 +1,25 @@
 package com.ethlo.kfka;
 
+/*-
+ * #%L
+ * kfka
+ * %%
+ * Copyright (C) 2017 Morten Haraldsen (ethlo)
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+
 import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
@@ -15,9 +35,9 @@ public class KfkaPredicate implements Serializable
 {
     private static final long serialVersionUID = -8869419733948277543L;
 
-    private final KfkaManager kfkaManager;
-    private Integer offset = null;
-    private Long offsetId;
+    private Integer relativeOffset;
+    
+    private Long messageId;
     
     // Filtering
     private String topic;
@@ -26,38 +46,6 @@ public class KfkaPredicate implements Serializable
     // Support custom properties
     private Map<String, Comparable> propertyMatch = new TreeMap<>();
     
-    public KfkaPredicate(KfkaManager kfkaManager)
-    {
-        this.kfkaManager = kfkaManager;
-    }
-
-    public KfkaPredicate seekToBeginning()
-    {
-        final long lowestMatch = kfkaManager.findfirst(topic, type);
-        if (lowestMatch != Long.MAX_VALUE)
-        {
-            offsetId = lowestMatch;
-            offset = -Integer.MAX_VALUE;
-        }
-        else
-        {
-            offsetId = null;
-        }
-        
-        return this;
-    }
-    
-    public KfkaPredicate seek(long offsetId)
-    {
-        this.offsetId = offsetId;
-        return this;
-    }
-    
-    public void seekToEnd()
-    {
-        this.offsetId = kfkaManager.findLatest(topic, type);
-    }
-
     public KfkaPredicate topic(String topic)
     {
         this.topic = topic;
@@ -70,11 +58,6 @@ public class KfkaPredicate implements Serializable
         return this;
     }
 
-    public void addListener(KfkaMessageListener l)
-    {
-        kfkaManager.addListener(l, this);
-    }
-
     public String getTopic()
     {
         return this.topic;
@@ -85,25 +68,25 @@ public class KfkaPredicate implements Serializable
         return this.type;
     }
 
-    public Long getOffsetId()
+    public Long getMessageId()
     {
-        return this.offsetId;
+        return this.messageId;
     }
     
-    public Integer getOffset()
+    public Integer getRelativeOffset()
     {
-        return this.offset;
+        return this.relativeOffset;
     }
 
-    public KfkaPredicate offset(Integer offset)
+    public KfkaPredicate relativeOffset(Integer relativeOffset)
     {
-        this.offset = offset;
+        this.relativeOffset = relativeOffset;
         return this;
     }
     
-    public KfkaPredicate offsetId(long offsetId)
+    public KfkaPredicate messageId(long offsetId)
     {
-        this.offsetId = offsetId;
+        this.messageId = offsetId;
         return this;
     }
 
@@ -140,14 +123,15 @@ public class KfkaPredicate implements Serializable
         };
     }
 
-    public Predicate<?,?> toHazelcastPredicate()
+    @SuppressWarnings("unchecked")
+    public Predicate<Long, KfkaMessage> toHazelcastPredicate()
     {
         final List<Predicate<?,?>> predicates = new LinkedList<>();
         
-        // Position
-        if (offsetId != null)
+        // Message ID
+        if (messageId != null)
         {
-            predicates.add(Predicates.greaterEqual("id", offsetId));
+            predicates.add(Predicates.greaterEqual("id", messageId));
         }
         
         // Topic
@@ -171,10 +155,5 @@ public class KfkaPredicate implements Serializable
     {
         this.propertyMatch = propertyMatch;
         return this;
-    }
-
-    public static KfkaPredicate rewind(KfkaManager manager, int count)
-    {
-        return new KfkaPredicate(manager).offset(-count);
     }
 }

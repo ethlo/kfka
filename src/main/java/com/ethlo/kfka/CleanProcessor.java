@@ -20,7 +20,18 @@ package com.ethlo.kfka;
  * #L%
  */
 
-public interface KfkaMessageListener
+import java.util.Map.Entry;
+
+import com.hazelcast.map.AbstractEntryProcessor;
+
+public class CleanProcessor extends AbstractEntryProcessor<Long, KfkaMessage>
 {
-    void onMessage(KfkaMessage msg);
+    private static final long serialVersionUID = 6953483674346132344L;
+
+    @Override
+    public Object process(Entry<Long, KfkaMessage> entry)
+    {
+        entry.setValue(null);
+        return null;
+    }        
 }

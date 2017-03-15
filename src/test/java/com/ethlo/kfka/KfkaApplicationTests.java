@@ -1,12 +1,31 @@
 package com.ethlo.kfka;
 
+/*-
+ * #%L
+ * kfka
+ * %%
+ * Copyright (C) 2017 Morten Haraldsen (ethlo)
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+
 import static org.fest.assertions.api.Assertions.assertThat;
 
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -17,6 +36,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.StopWatch;
 
+import com.acme.CustomKfkaMessage;
 import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
 
 @RunWith(SpringRunner.class)
@@ -53,7 +73,7 @@ public class KfkaApplicationTests
             {
                 received.add(msg);
             }
-        }, new KfkaPredicate(kfkaManager).offset(-1));
+        }, new KfkaPredicate().relativeOffset(-1));
 
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage").timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype").build());
 
@@ -75,14 +95,15 @@ public class KfkaApplicationTests
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
 
         final List<KfkaMessage> received = new LinkedList<>();
-        new KfkaPredicate(kfkaManager).topic("bar").seekToBeginning().addListener(new KfkaMessageListener()
+        final KfkaPredicate predicate = new KfkaPredicate().topic("bar").messageId(0);
+        this.kfkaManager.addListener(new KfkaMessageListener()
         {
             @Override
             public void onMessage(KfkaMessage msg)
             {
                 received.add(msg);
             }
-        });
+        }, predicate);
 
         assertThat(received).hasSize(2);
         assertThat(received.get(0).getId()).isEqualTo(2);
@@ -99,14 +120,14 @@ public class KfkaApplicationTests
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
 
         final List<KfkaMessage> received = new LinkedList<>();
-        new KfkaPredicate(kfkaManager).topic("bar").offset(-1).addListener(new KfkaMessageListener()
+        kfkaManager.addListener(new KfkaMessageListener()
         {
             @Override
             public void onMessage(KfkaMessage msg)
             {
                 received.add(msg);
             }
-        });
+        }, new KfkaPredicate().topic("bar").relativeOffset(-1));
 
         assertThat(received).hasSize(1);
         assertThat(received.get(0).getId()).isEqualTo(4);
@@ -134,11 +155,10 @@ public class KfkaApplicationTests
             .build());
         
         final CollectingListener collListener = new CollectingListener();
-        new KfkaPredicate(kfkaManager)
+        kfkaManager.addListener(collListener, new KfkaPredicate()
             .topic("bar")
-            .offset(-10)
-            .propertyMatch(Collections.singletonMap("userId", 123))
-            .addListener(collListener);
+            .relativeOffset(-10)
+            .propertyMatch(Collections.singletonMap("userId", 123)));
 
         assertThat(collListener.getReceived()).hasSize(1);
         assertThat(collListener.getReceived().get(0).getId()).isEqualTo(2);
@@ -165,6 +185,32 @@ public class KfkaApplicationTests
         assertThat(collListener.getReceived()).hasSize(2);
         assertThat(collListener.getReceived().get(1).getId()).isEqualTo(3);
     }
+
+    @Test
+    public void testLastMessageId() throws InterruptedException
+    {
+        kfkaManager.clearAll();
+        final CustomKfkaMessage msg1 = new CustomKfkaMessageBuilder().payload("myMessage1")
+            .timestamp(System.currentTimeMillis())
+            .topic("foo")
+            .payload("msg1")
+            .type("mytype")
+            .build();
+        
+        final CustomKfkaMessage msg2 = new CustomKfkaMessageBuilder().payload("myMessage1")
+            .timestamp(System.currentTimeMillis())
+            .topic("foo")
+            .type("mytype")
+            .payload("msg2")
+            .build();
+        
+        kfkaManager.add(msg1);
+        kfkaManager.add(msg2);
+        final CollectingListener l = new CollectingListener();
+        kfkaManager.addListener(l, new KfkaPredicate().messageId(msg2.getId()));
+        assertThat(l.getReceived()).hasSize(1);
+        assertThat(l.getReceived()).contains(msg2);
+    }
     
     @Test
     public void testMessagesPersisted() throws InterruptedException
@@ -179,11 +225,10 @@ public class KfkaApplicationTests
         long count = kfkaManager.loadAll();
         assertThat(count).isEqualTo(1);
         final CollectingListener l = new CollectingListener();
-        kfkaManager.addListener(l, KfkaPredicate.rewind(kfkaManager, 1));
+        kfkaManager.addListener(l, new KfkaPredicate().messageId(0));
         assertThat(l.getReceived()).hasSize(1);
     }
     
-    @Ignore
     @Test
     public void testPerformance1() throws InterruptedException
     {
@@ -219,11 +264,10 @@ public class KfkaApplicationTests
             
         sw.start("Query");
         final CollectingListener collListener = new CollectingListener();
-        new KfkaPredicate(kfkaManager)
+        kfkaManager.addListener(collListener, new KfkaPredicate()
             .topic("bar")
-            .offset(-(count + 10))
-            .propertyMatch(Collections.singletonMap("userId", 123))
-            .addListener(collListener);
+            .relativeOffset(-(count + 10))
+            .propertyMatch(Collections.singletonMap("userId", 123)));
         sw.stop();
         assertThat(collListener.getReceived()).hasSize(count);
         assertThat(collListener.getReceived().get(0).getId()).isEqualTo(count + 1);

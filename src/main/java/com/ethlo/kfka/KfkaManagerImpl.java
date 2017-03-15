@@ -1,7 +1,27 @@
 package com.ethlo.kfka;
 
+/*-
+ * #%L
+ * kfka
+ * %%
+ * Copyright (C) 2017 Morten Haraldsen (ethlo)
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+
+import java.util.Collection;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -9,7 +29,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,18 +38,15 @@ import com.ethlo.kfka.persistence.KfkaCounterStore;
 import com.ethlo.kfka.persistence.KfkaMapStore;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
+import com.hazelcast.aggregation.Aggregators;
 import com.hazelcast.config.EvictionPolicy;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MapStoreConfig;
-import com.hazelcast.config.MapStoreConfig.InitialLoadMode;
 import com.hazelcast.core.EntryEvent;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IAtomicLong;
 import com.hazelcast.core.IMap;
-import com.hazelcast.map.AbstractEntryProcessor;
 import com.hazelcast.map.listener.EntryAddedListener;
-import com.hazelcast.mapreduce.aggregation.Aggregations;
-import com.hazelcast.mapreduce.aggregation.Supplier;
 import com.hazelcast.query.PagingPredicate;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.query.Predicates;
@@ -39,12 +55,13 @@ import com.hazelcast.util.IterationType;
 public class KfkaManagerImpl implements KfkaManager
 {
     private final static Logger logger = LoggerFactory.getLogger(KfkaManagerImpl.class);
-    
-    private Map<KfkaMessageListener, KfkaPredicate> msgListeners = new IdentityHashMap<>();
-    private IMap<Long, KfkaMessage> messages;
-    private IAtomicLong counter;
-    private KfkaConfig kfkaCfg;
-    private KfkaMapStore<? extends KfkaMessage> mapStore;
+
+    private final Map<KfkaMessageListener, KfkaPredicate> msgListeners = new IdentityHashMap<>();
+    private final IMap<Long, KfkaMessage> messages;
+    private final IAtomicLong counter;
+    private final KfkaConfig kfkaCfg;
+    private final KfkaMapStore<? extends KfkaMessage> mapStore;
+    private final CleanProcessor cleanProcessor = new CleanProcessor();
     
     public KfkaManagerImpl(HazelcastInstance hazelcastInstance, KfkaMapStore<? extends KfkaMessage> mapStore, KfkaCounterStore counterStore, KfkaConfig kfkaCfg)
     {
@@ -52,12 +69,13 @@ public class KfkaManagerImpl implements KfkaManager
         
         final MapConfig hzcfg = hazelcastInstance.getConfig().getMapConfig(kfkaCfg.getName());
         hzcfg.setEvictionPolicy(EvictionPolicy.NONE);
+        
         final MapStoreConfig mapCfg = hzcfg.getMapStoreConfig();
         mapCfg.setImplementation(mapStore);
-        mapCfg.setEnabled(true);
+        mapCfg.setEnabled(kfkaCfg.isPersistent());
         mapCfg.setWriteBatchSize(kfkaCfg.getBatchSize());
         mapCfg.setWriteDelaySeconds(kfkaCfg.getWriteDelay());
-        mapCfg.setInitialLoadMode(InitialLoadMode.EAGER);
+        mapCfg.setInitialLoadMode(kfkaCfg.getInitialLoadMode());
         
         this.mapStore = mapStore;
         this.messages = hazelcastInstance.getMap(kfkaCfg.getName());
@@ -96,7 +114,7 @@ public class KfkaManagerImpl implements KfkaManager
     
     public void addListener(KfkaMessageListener l)
     {
-        this.msgListeners.put(l, new KfkaPredicate(this));
+        this.addListener(l, new KfkaPredicate());
     }
     
     @Override
@@ -108,29 +126,12 @@ public class KfkaManagerImpl implements KfkaManager
     }
     
     @Override
-    @Scheduled(fixedRate=60_000)
+    @Scheduled(fixedRate=180_000)
     public void clean()
     {
         final long oldest = System.currentTimeMillis() - kfkaCfg.getTtl(TimeUnit.MILLISECONDS);
-        final AtomicInteger removed = new AtomicInteger(0);
         final Predicate<?, ?> p = Predicates.lessThan("timestamp", oldest); 
-        this.messages.executeOnEntries(new AbstractEntryProcessor<Long, KfkaMessage>()
-        {
-            private static final long serialVersionUID = 6953483674346132344L;
-
-            @Override
-            public Object process(Entry<Long, KfkaMessage> entry)
-            {
-                entry.setValue(null);
-                removed.incrementAndGet();
-                return true;
-            }           
-        }, p);
-        
-        if (removed.get() > 0)
-        {
-            logger.info("Removed {} expired items older than {}", removed.get(), new Date(oldest).toInstant().toString());
-        }
+        this.messages.executeOnEntries(cleanProcessor, p);
     }
 
     @Override
@@ -141,10 +142,7 @@ public class KfkaManagerImpl implements KfkaManager
     
     private long doFind(boolean first, String topic)
     {
-        Supplier<Long, KfkaMessage, Long> supplier = 
-            Supplier.fromPredicate((e) -> e.getValue().getTopic().equalsIgnoreCase(topic), 
-            Supplier.all((KfkaMessage m) -> m.getId()));
-        return messages.aggregate(supplier, first ? Aggregations.longMin() : Aggregations.longMax());
+        return messages.aggregate(first ? Aggregators.longMin() : Aggregators.longMax());
     }
 
     @Override
@@ -162,37 +160,18 @@ public class KfkaManagerImpl implements KfkaManager
 
     public KfkaMessageListener addListener(KfkaMessageListener l, KfkaPredicate kfkaPredicate)
     {
-        // Offset
-        final Integer offset = kfkaPredicate.getOffset();
-        PagingPredicate pagingPredicate; 
-        int skip = 0;
-        if (offset == null)
+        // Relative offset
+        final Integer offset = kfkaPredicate.getRelativeOffset();
+        if (offset == null && kfkaPredicate.getMessageId() != null)
         {
-            pagingPredicate = new PagingPredicate(kfkaPredicate.toHazelcastPredicate(), ORDER_BY_ID_DESCENDING, 1);
-            skip = 1;
+            // We have just a message id
+            sendHistoricData(new PagingPredicate<Long, KfkaMessage>(kfkaPredicate.toHazelcastPredicate(), ORDER_BY_ID_DESCENDING, kfkaCfg.getMaxQuerySize()), l);
         }
-        else
+        else if (offset != null && kfkaPredicate.getMessageId() == null)
         {
-            pagingPredicate = new PagingPredicate(kfkaPredicate.toHazelcastPredicate(), ORDER_BY_ID_DESCENDING, -offset);
+            // We have just a relative offset
+            sendHistoricData(new PagingPredicate<Long, KfkaMessage>(kfkaPredicate.toHazelcastPredicate(), ORDER_BY_ID_DESCENDING, -offset), l);
         }
-        
-        pagingPredicate.setIterationType(IterationType.VALUE);
-        
-        //messages.entrySet().stream().forEach(e->{System.err.println(e);});
-            
-        // Deliver all messages up until now
-        FluentIterable
-            .from(messages.values(pagingPredicate))
-                .skip(skip)
-                .toSortedList(new Comparator<KfkaMessage>()
-                {
-                    @Override
-                    public int compare(KfkaMessage a, KfkaMessage b)
-                    {
-                        return a.getId().compareTo(b.getId());
-                    }
-                })
-                .forEach(e -> l.onMessage(e));
         
         // Add to set of listeners, with the desired predicate
         msgListeners.put(l, kfkaPredicate);
@@ -200,13 +179,32 @@ public class KfkaManagerImpl implements KfkaManager
         return l;
     }
     
-    @SuppressWarnings("rawtypes")
-    private static final Comparator<Entry> ORDER_BY_ID_DESCENDING = new Comparator<Entry>()
+    private void sendHistoricData(PagingPredicate<Long, KfkaMessage> pagingPredicate, KfkaMessageListener l)
     {
+        pagingPredicate.setIterationType(IterationType.VALUE);
+        final Collection<KfkaMessage> hits = messages.values(pagingPredicate);
+        
+        // Deliver all messages up until now
+        FluentIterable.from(hits)
+            .toSortedList(new Comparator<KfkaMessage>()
+            {
+                @Override
+                public int compare(KfkaMessage a, KfkaMessage b)
+                {
+                    return a.getId().compareTo(b.getId());
+                }
+            })
+            .forEach(e -> l.onMessage(e));
+    }
+
+    private static final Comparator<Entry<Long, KfkaMessage>> ORDER_BY_ID_DESCENDING = new SerializableComparator<Entry<Long, KfkaMessage>>()
+    {
+        private static final long serialVersionUID = 6647415692489347533L;
+
         @Override
-        public int compare(Entry a, Entry b)
+        public int compare(Entry<Long, KfkaMessage> a, Entry<Long, KfkaMessage> b)
         {
-            return ((KfkaMessage)b.getValue()).getId().compareTo(((KfkaMessage)a.getValue()).getId());
+            return b.getValue().getId().compareTo(a.getValue().getId());
         }
     };
 
