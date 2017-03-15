@@ -38,7 +38,8 @@ import com.ethlo.kfka.persistence.KfkaCounterStore;
 import com.ethlo.kfka.persistence.KfkaMapStore;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
-import com.hazelcast.aggregation.Aggregators;
+import com.hazelcast.aggregation.impl.MaxAggregator;
+import com.hazelcast.aggregation.impl.MinAggregator;
 import com.hazelcast.config.EvictionPolicy;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MapStoreConfig;
@@ -118,11 +119,12 @@ public class KfkaManagerImpl implements KfkaManager
     }
     
     @Override
-    public void add(KfkaMessage msg)
+    public long add(KfkaMessage msg)
     {
         final long id = counter.incrementAndGet();
         msg.id(id);
         this.messages.put(id, msg, kfkaCfg.getTtl(TimeUnit.SECONDS), TimeUnit.SECONDS);
+        return id;
     }
     
     @Override
@@ -135,20 +137,21 @@ public class KfkaManagerImpl implements KfkaManager
     }
 
     @Override
-    public long findfirst(String topic, String type)
+    public long size()
     {
-        return doFind(true, topic);
+        return messages.size();
     }
     
-    private long doFind(boolean first, String topic)
+    @Override
+    public long findfirst()
     {
-        return messages.aggregate(first ? Aggregators.longMin() : Aggregators.longMax());
+        return (long) messages.aggregate(new MinAggregator("id"));
     }
 
     @Override
-    public long findLatest(String topic, String type)
+    public long findLatest()
     {
-        return doFind(false, topic);
+        return (long) messages.aggregate(new MaxAggregator("id"));
     }
 
     @Override
@@ -230,5 +233,11 @@ public class KfkaManagerImpl implements KfkaManager
     public void removeListener(KfkaMessageListener listener)
     {
         this.msgListeners.remove(listener);
+    }
+
+    @Override
+    public void delete(long messageId)
+    {
+        this.messages.remove(messageId);
     }
 }

@@ -22,15 +22,17 @@ package com.ethlo.kfka;
 
 public interface KfkaManager
 {
-    void add(KfkaMessage msg);
+    long add(KfkaMessage msg);
 
     void clean();
     
     void clearAll();
 
-    long findfirst(String topic, String type);
+    long findfirst();
 
-    long findLatest(String topic, String type);
+    long findLatest();
+    
+    long size();
 
     void addListener(KfkaMessageListener l);
 
@@ -41,4 +43,6 @@ public interface KfkaManager
     long loadAll();
 
     void removeListener(KfkaMessageListener listener);
+
+    void delete(long messageId);
 }

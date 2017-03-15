@@ -111,6 +111,57 @@ public class KfkaApplicationTests
     }
 
     @Test
+    public void testCleanOldMessages() throws InterruptedException
+    {
+        kfkaManager.clearAll();
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.clean();
+    }
+    
+    @Test
+    public void testSize() throws InterruptedException
+    {
+        kfkaManager.clearAll();
+        final long a = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
+        final long b = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        assertThat(kfkaManager.size()).isEqualTo(2);
+    }
+    
+    @Test
+    public void testFindFirst() throws InterruptedException
+    {
+        kfkaManager.clearAll();
+        final long a = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
+        final long b = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        final long first = kfkaManager.findfirst();
+        assertThat(first).isEqualTo(a);
+    }
+    
+    @Test
+    public void testFindLatest() throws InterruptedException
+    {
+        kfkaManager.clearAll();
+        final long a = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
+        final long b = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        final long latest = kfkaManager.findLatest();
+        assertThat(latest).isEqualTo(b);
+    }
+    
+    @Test
+    public void testDeleteMessages() throws InterruptedException
+    {
+        kfkaManager.clearAll();
+        final long id = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
+        final long left = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.delete(id);
+        assertThat(kfkaManager.size()).isEqualTo(1);
+        assertThat(kfkaManager.findfirst()).isEqualTo(left);
+    }
+    
+    @Test
     public void testQueryWithRelativeOffsetFilteredByTopic() throws InterruptedException
     {
         kfkaManager.clearAll();

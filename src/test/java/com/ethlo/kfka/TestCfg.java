@@ -37,6 +37,7 @@ import com.ethlo.kfka.persistence.KfkaCounterStore;
 import com.ethlo.kfka.persistence.KfkaMapStore;
 import com.ethlo.kfka.persistence.sql.SqlKfkaCounterStore;
 import com.ethlo.kfka.persistence.sql.SqlKfkaMapStore;
+import com.hazelcast.config.MapStoreConfig.InitialLoadMode;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
@@ -95,6 +96,8 @@ public class TestCfg
                 .ttl(300, TimeUnit.SECONDS)
                 .name("kfka")
                 .writeDelay(0)
+                .persistent(true)
+                .initialLoadMode(InitialLoadMode.EAGER)
                 .batchSize(250));
     }
 }
