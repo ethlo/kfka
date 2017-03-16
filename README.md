@@ -13,10 +13,10 @@ The durability guarantee is easily tweaked by the write policy of the map.
 # Usage
 ```java
 kfkaManager.addListener((msg)->
-	 {
-         //TODO: Handle message
-     },
-     new KfkaPredicate()
+  {
+    // TODO: Handle message
+  },
+  new KfkaPredicate()
     .topic("bar")
     .offset(-100)
     .propertyMatch(Collections.singletonMap("userId", 123));
