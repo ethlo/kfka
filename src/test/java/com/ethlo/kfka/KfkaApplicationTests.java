@@ -31,7 +31,6 @@ import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.StopWatch;
@@ -41,7 +40,6 @@ import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestCfg.class)
-@EnableAutoConfiguration
 public class KfkaApplicationTests
 {
     private final Logger logger = LoggerFactory.getLogger(KfkaApplicationTests.class);
@@ -272,7 +270,7 @@ public class KfkaApplicationTests
              .topic("foo")
              .type("mytype").build());
         kfkaManager.clearCache();
-        Thread.sleep(1000);
+        Thread.sleep(1500);
         long count = kfkaManager.loadAll();
         assertThat(count).isEqualTo(1);
         final CollectingListener l = new CollectingListener();

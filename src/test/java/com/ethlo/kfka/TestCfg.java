@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 
 import org.flywaydb.core.Flyway;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.RowMapper;
@@ -42,6 +43,7 @@ import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
 @Configuration
+@EnableAutoConfiguration
 public class TestCfg
 {
     @Bean(destroyMethod="shutdown")

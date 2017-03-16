@@ -50,7 +50,7 @@ public class CustomKfkaMessage extends KfkaMessage
 
         @SuppressWarnings("unchecked")
         @Override
-        public KfkaMessage build()
+        public CustomKfkaMessage build()
         {
             return new CustomKfkaMessage(this);
         }

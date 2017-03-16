@@ -113,6 +113,7 @@ public class KfkaManagerImpl implements KfkaManager
         }
     }
     
+    @Override
     public void addListener(KfkaMessageListener l)
     {
         this.addListener(l, new KfkaPredicate());

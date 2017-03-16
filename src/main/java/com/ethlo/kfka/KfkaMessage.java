@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 
 import org.springframework.util.Assert;
@@ -142,8 +143,11 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     @Override
     public String toString()
     {
-        return "KfkaMessage [id=" + id + ", " + (topic != null ? "topic=" + topic + ", " : "") + "timestamp=" + timestamp + ", " + (payload != null ? "payload=" + payload + ", " : "")
-                        + (type != null ? "type=" + type + ", " : "");
+        return "KfkaMessage [id=" + id 
+                        + ", topic=" + topic 
+                        + ", timestamp=" + timestamp 
+                        + ", payload=" + payload
+                        + ", type=" + type;
     }
 
     KfkaMessage id(long id)
@@ -205,7 +209,6 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         out.writeUTF(type);
         out.writeLong(timestamp);
         out.writeByteArray(payload);
-
         doWriteData(out);
     }
 
@@ -220,8 +223,6 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         
         doReadData(in);  
     }
-    
-    
 
     @Override
     public int hashCode()
@@ -229,49 +230,17 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         final int prime = 31;
         int result = 1;
         result = prime * result + ((id == null) ? 0 : id.hashCode());
-        result = prime * result + Arrays.hashCode(payload);
-        result = prime * result + (int) (timestamp ^ (timestamp >>> 32));
-        result = prime * result + ((topic == null) ? 0 : topic.hashCode());
-        result = prime * result + ((type == null) ? 0 : type.hashCode());
         return result;
     }
 
     @Override
     public boolean equals(Object obj)
     {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        KfkaMessage other = (KfkaMessage) obj;
-        if (id == null)
+        if (obj instanceof KfkaMessage)
         {
-            if (other.id != null)
-                return false;
+            return Objects.equals(id, ((KfkaMessage) obj).id);    
         }
-        else if (!id.equals(other.id))
-            return false;
-        if (!Arrays.equals(payload, other.payload))
-            return false;
-        if (timestamp != other.timestamp)
-            return false;
-        if (topic == null)
-        {
-            if (other.topic != null)
-                return false;
-        }
-        else if (!topic.equals(other.topic))
-            return false;
-        if (type == null)
-        {
-            if (other.type != null)
-                return false;
-        }
-        else if (!type.equals(other.type))
-            return false;
-        return true;
+        return false;
     }
 
     protected abstract void doWriteData(ObjectDataOutput out) throws IOException;

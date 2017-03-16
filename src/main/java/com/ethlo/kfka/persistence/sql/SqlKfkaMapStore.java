@@ -147,7 +147,9 @@ public class SqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
         for (String propName : value.getQueryableProperties())
         {
             if (! retVal.containsKey(propName))
-            retVal.put(propName, KfkaMessage.getPropertyValue(value.getClass(), propName));
+            {
+                retVal.put(propName, KfkaMessage.getPropertyValue(value, propName));
+            }
         }
         
         return retVal;
