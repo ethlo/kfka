@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import org.springframework.util.Assert;
+
 import com.hazelcast.query.Predicate;
 import com.hazelcast.query.Predicates;
 
@@ -151,8 +153,15 @@ public class KfkaPredicate implements Serializable
         return Predicates.and(predicates.toArray(new Predicate[predicates.size()]));
     }
 
-    public KfkaPredicate propertyMatch(Map<String, Comparable> propertyMatch)
+    public KfkaPredicate addPropertyMatch(String propertyName, Comparable propertyValue)
     {
+        this.propertyMatch.put(propertyName, propertyValue);
+        return this;
+    }
+    
+    public KfkaPredicate setPropertyMatch(Map<String, Comparable> propertyMatch)
+    {
+        Assert.notNull(propertyMatch, "propertyMatch cannot be null");
         this.propertyMatch = propertyMatch;
         return this;
     }

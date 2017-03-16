@@ -207,7 +207,7 @@ public class KfkaApplicationTests
         kfkaManager.addListener(collListener, new KfkaPredicate()
             .topic("bar")
             .relativeOffset(-10)
-            .propertyMatch(Collections.singletonMap("userId", 123)));
+            .addPropertyMatch("userId", 123));
 
         assertThat(collListener.getReceived()).hasSize(1);
         assertThat(collListener.getReceived().get(0).getId()).isEqualTo(2);
@@ -316,7 +316,7 @@ public class KfkaApplicationTests
         kfkaManager.addListener(collListener, new KfkaPredicate()
             .topic("bar")
             .relativeOffset(-(count + 10))
-            .propertyMatch(Collections.singletonMap("userId", 123)));
+            .addPropertyMatch("userId", 123));
         sw.stop();
         assertThat(collListener.getReceived()).hasSize(count);
         assertThat(collListener.getReceived().get(0).getId()).isEqualTo(count + 1);
