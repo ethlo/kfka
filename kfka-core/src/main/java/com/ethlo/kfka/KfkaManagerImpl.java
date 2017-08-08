@@ -22,7 +22,6 @@ package com.ethlo.kfka;
 
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +36,7 @@ import com.ethlo.kfka.persistence.KfkaCounterStore;
 import com.ethlo.kfka.persistence.KfkaMapStore;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.MapMaker;
 import com.hazelcast.aggregation.impl.MaxAggregator;
 import com.hazelcast.aggregation.impl.MinAggregator;
 import com.hazelcast.config.EvictionPolicy;
@@ -56,12 +56,17 @@ public class KfkaManagerImpl implements KfkaManager
 {
     private final static Logger logger = LoggerFactory.getLogger(KfkaManagerImpl.class);
 
-    private final Map<KfkaMessageListener, KfkaPredicate> msgListeners = new IdentityHashMap<>();
+    private final Map<KfkaMessageListener, KfkaPredicate> msgListeners = new MapMaker()
+       .concurrencyLevel(10)
+       .weakKeys()
+       .makeMap();
+
     private final IMap<Long, KfkaMessage> messages;
     private final IAtomicLong counter;
     private final KfkaConfig kfkaCfg;
     private final KfkaMapStore<? extends KfkaMessage> mapStore;
     private final CleanProcessor cleanProcessor = new CleanProcessor();
+    
     private static final Comparator<Entry<Long, KfkaMessage>> ORDER_BY_ID_DESCENDING = new SerializableComparator<Entry<Long, KfkaMessage>>()
     {
         private static final long serialVersionUID = 6647415692489347533L;
@@ -99,8 +104,11 @@ public class KfkaManagerImpl implements KfkaManager
             @Override
             public void entryAdded(EntryEvent<Long, KfkaMessage> event)
             {
-                for (Entry<KfkaMessageListener, KfkaPredicate> e : msgListeners.entrySet())
+            	logger.debug("Received message for dispatch: {}", event.getValue());
+                final Iterator<Entry<KfkaMessageListener, KfkaPredicate>> iter = msgListeners.entrySet().iterator();
+                while (iter.hasNext())
                 {
+                	final Entry<KfkaMessageListener, KfkaPredicate> e = iter.next();
                     final KfkaPredicate predicate = e.getValue();
                     final KfkaMessage msg = event.getValue();
                     
@@ -108,6 +116,7 @@ public class KfkaManagerImpl implements KfkaManager
                     if (predicate.toGuavaPredicate().apply(msg))
                     {
                         final KfkaMessageListener l = e.getKey();
+                        logger.debug("Sending message {} to {}", event.getValue().getId(), e.getKey());
                         l.onMessage(event.getValue());
                     }
                 }

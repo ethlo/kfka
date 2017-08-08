@@ -27,16 +27,6 @@
 			<artifactId>guava</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.ethlo.kfka</groupId>
-			<artifactId>kfka-model</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>com.ethlo.kfka</groupId>
 			<artifactId>kfka-test</artifactId>
 			<version>${project.version}</version>
