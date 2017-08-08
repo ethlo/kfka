@@ -1,6 +1,6 @@
 # kfka
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.ethlo.kfka/kfka/badge.svg)](https://maven-badges.herokuapp.com/maven-central/cz.jirutka.rsql/rsql-parser)
+[![Maven Central](https://img.shields.io/maven-central/v/com.ethlo.kfka/kfka.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.ethlo.kfka%22%20a%3A%22kfka%22)
 [![Build Status](https://travis-ci.org/ethlo/kfka.svg?branch=master)](https://travis-ci.org/ethlo/kfka)
 [![Coverage Status](https://coveralls.io/repos/github/ethlo/kfka/badge.svg?branch=master)](https://coveralls.io/github/ethlo/kfka?branch=master)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/ee97abb9994d44c7b61e533454368dd0)](https://www.codacy.com/app/ethlo/kfka?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ethlo/kfka&amp;utm_campaign=Badge_Grade)
