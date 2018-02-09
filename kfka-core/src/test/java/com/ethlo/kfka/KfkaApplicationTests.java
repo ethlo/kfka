@@ -58,7 +58,7 @@ public class KfkaApplicationTests
 
         for (int i = 0; i < 1_000; i++)
         {
-            kfkaManager.add(new CustomKfkaMessageBuilder().payload("" + i).timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype").build());
+            kfkaManager.add(new CustomKfkaMessageBuilder().payload("" + i).topic("mytopic").type("mytype").build());
         }
 
         final List<KfkaMessage> received = new LinkedList<>();
@@ -72,7 +72,7 @@ public class KfkaApplicationTests
             }
         }, new KfkaPredicate().relativeOffset(-1));
 
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage").timestamp(System.currentTimeMillis()).topic("mytopic").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage").topic("mytopic").type("mytype").build());
 
         Thread.sleep(100);
         
@@ -86,10 +86,10 @@ public class KfkaApplicationTests
     {
         kfkaManager.clearAll();
 
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").build());
 
         final List<KfkaMessage> received = new LinkedList<>();
         final KfkaPredicate predicate = new KfkaPredicate().topic("bar").messageId(0);
@@ -111,10 +111,10 @@ public class KfkaApplicationTests
     public void testCleanOldMessages() throws InterruptedException
     {
         kfkaManager.clearAll();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").build());
         kfkaManager.clean();
     }
     
@@ -122,8 +122,8 @@ public class KfkaApplicationTests
     public void testSize() throws InterruptedException
     {
         kfkaManager.clearAll();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
         assertThat(kfkaManager.size()).isEqualTo(2);
     }
     
@@ -131,8 +131,8 @@ public class KfkaApplicationTests
     public void testFindFirst() throws InterruptedException
     {
         kfkaManager.clearAll();
-        final long a = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        final long a = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
         final long first = kfkaManager.findfirst();
         assertThat(first).isEqualTo(a);
     }
@@ -141,8 +141,8 @@ public class KfkaApplicationTests
     public void testFindLatest() throws InterruptedException
     {
         kfkaManager.clearAll();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
-        final long b = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
+        final long b = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
         final long latest = kfkaManager.findLatest();
         assertThat(latest).isEqualTo(b);
     }
@@ -151,8 +151,8 @@ public class KfkaApplicationTests
     public void testDeleteMessages() throws InterruptedException
     {
         kfkaManager.clearAll();
-        final long id = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
-        final long left = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        final long id = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
+        final long left = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
         kfkaManager.delete(id);
         assertThat(kfkaManager.size()).isEqualTo(1);
         assertThat(kfkaManager.findfirst()).isEqualTo(left);
@@ -162,10 +162,10 @@ public class KfkaApplicationTests
     public void testQueryWithRelativeOffsetFilteredByTopic() throws InterruptedException
     {
         kfkaManager.clearAll();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").timestamp(System.currentTimeMillis()).topic("foo").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").timestamp(System.currentTimeMillis()).topic("baz").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").timestamp(System.currentTimeMillis()).topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").build());
 
         final List<KfkaMessage> received = new LinkedList<>();
         kfkaManager.addListener(new KfkaMessageListener()
@@ -189,7 +189,6 @@ public class KfkaApplicationTests
         kfkaManager.add(new CustomKfkaMessageBuilder()
             .userId(321)
             .payload("myMessage1")
-            .timestamp(System.currentTimeMillis())
             .topic("bar")
             .type("mytype")
             .build());
@@ -197,7 +196,6 @@ public class KfkaApplicationTests
         kfkaManager.add(new CustomKfkaMessageBuilder()
             .userId(123)
             .payload("myMessage2")
-            .timestamp(System.currentTimeMillis())
             .topic("bar")
             .type("mytype")
             .build());
@@ -214,7 +212,6 @@ public class KfkaApplicationTests
         kfkaManager.add(new CustomKfkaMessageBuilder()
             .userId(123)
             .payload("myMessage3")
-            .timestamp(System.currentTimeMillis())
             .topic("bar")
             .type("mytype")
             .build());
@@ -222,7 +219,6 @@ public class KfkaApplicationTests
         kfkaManager.add(new CustomKfkaMessageBuilder()
             .userId(321)
             .payload("myMessage4")
-            .timestamp(System.currentTimeMillis())
             .topic("bar")
             .type("mytype")
             .build());
@@ -239,14 +235,12 @@ public class KfkaApplicationTests
     {
         kfkaManager.clearAll();
         final CustomKfkaMessage msg1 = new CustomKfkaMessageBuilder().payload("myMessage1")
-            .timestamp(System.currentTimeMillis())
             .topic("foo")
             .payload("msg1")
             .type("mytype")
             .build();
         
         final CustomKfkaMessage msg2 = new CustomKfkaMessageBuilder().payload("myMessage1")
-            .timestamp(System.currentTimeMillis())
             .topic("foo")
             .type("mytype")
             .payload("msg2")
@@ -265,7 +259,6 @@ public class KfkaApplicationTests
     {
         kfkaManager.clearAll();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
-             .timestamp(System.currentTimeMillis())
              .topic("foo")
              .type("mytype").build());
         kfkaManager.clearCache();
@@ -290,7 +283,6 @@ public class KfkaApplicationTests
             kfkaManager.add(new CustomKfkaMessageBuilder()
                 .userId(321)
                 .payload("otherMessage" + i)
-                .timestamp(System.currentTimeMillis())
                 .topic("bar")
                 .type("mytype")
                 .build());
@@ -303,7 +295,6 @@ public class KfkaApplicationTests
             kfkaManager.add(new CustomKfkaMessageBuilder()
                 .userId(123)
                 .payload("myMessage" + 1)
-                .timestamp(System.currentTimeMillis())
                 .topic("bar")
                 .type("mytype")
                 .build());

@@ -68,7 +68,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     public abstract static class Builder
     {
         private String topic;
-        private long timestamp;
+        private Long timestamp = System.currentTimeMillis();
         private byte[] payload;
         private String type;
         private Long id;
@@ -244,4 +244,9 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     protected abstract void doWriteData(ObjectDataOutput out) throws IOException;
 
     protected abstract void doReadData(ObjectDataInput in) throws IOException;
+
+    void timestamp(long timestamp)
+    {
+        this.timestamp = timestamp;
+    }
 }

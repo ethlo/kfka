@@ -2,6 +2,10 @@ package com.ethlo.kfka.mysql;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
+import java.time.temporal.ChronoField;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 
 /*-
  * #%L
@@ -89,15 +93,15 @@ public class TestCfg
             }
         };
         
-        return new MysqlKfkaMapStore<CustomKfkaMessage>(ds, ROW_MAPPER);
+        return new MysqlKfkaMapStore<CustomKfkaMessage>(ds, ROW_MAPPER, Duration.of(300, ChronoUnit.SECONDS));
     }
     
     @Bean
-    public KfkaManager kfkaConsumer(HazelcastInstance hazelcastInstance, KfkaMapStore<CustomKfkaMessage> mapStore, KfkaCounterStore counterStore)
+    public KfkaManager kfkaManager(HazelcastInstance hazelcastInstance, KfkaMapStore<CustomKfkaMessage> mapStore, KfkaCounterStore counterStore)
     {
         return new KfkaManagerImpl(hazelcastInstance, mapStore, counterStore, 
             new KfkaConfig()
-                .ttl(300, TimeUnit.SECONDS)
+                .ttl(Duration.of(300, ChronoUnit.SECONDS))
                 .name("kfka")
                 .writeDelay(0)
                 .persistent(true)

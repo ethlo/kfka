@@ -22,6 +22,7 @@ package com.ethlo.kfka.mysql;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,22 +47,27 @@ import com.ethlo.kfka.persistence.KfkaMapStore;
 
 public class MysqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
 {
-    private final static Logger logger = LoggerFactory.getLogger(MysqlKfkaMapStore.class);
+    private static final Logger logger = LoggerFactory.getLogger(MysqlKfkaMapStore.class);
     
     private final IterableNamedParameterJdbcTemplate tpl;
-    private RowMapper<T> mapper;
+    private final RowMapper<T> mapper;
+    private final Duration ttl;
     
-    public MysqlKfkaMapStore(DataSource dataSource, RowMapper<T> mapper)
+    public MysqlKfkaMapStore(DataSource dataSource, RowMapper<T> mapper, Duration ttl)
     {
         this.tpl = new IterableNamedParameterJdbcTemplate(dataSource);
         this.mapper = mapper;
+        this.ttl = ttl;
     }
     
     @Override
     public T load(Long key)
     {
         logger.debug("Loading for key {}", key);
-        final List<T> res = tpl.query("SELECT * from kfka WHERE id = :key", Collections.singletonMap("key", key), mapper);
+        final Map<String, Object> params = new TreeMap<>();
+        params.put("key", key);
+        params.put("ts", getTtlTs());
+        final List<T> res = tpl.query("SELECT * from kfka WHERE id = :key AND timestamp > :ts", params, mapper);
         if (! res.isEmpty())
         {
             return res.get(0);
@@ -69,25 +75,40 @@ public class MysqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
         return null;
     }
 
+    private long getTtlTs()
+    {
+        return System.currentTimeMillis() - ttl.toMillis();
+    }
+
     @Override
     public Map<Long, T> loadAll(Collection<Long> keys)
     {
-        logger.debug("Loading data for keys {}", StringUtils.collectionToCommaDelimitedString(keys));
-        final List<T> res = tpl.query("SELECT * FROM kfka WHERE id IN (:keys)", Collections.singletonMap("keys", keys), mapper);
+        if (logger.isDebugEnabled())
+        {
+            logger.debug("Loading data for keys {}", StringUtils.collectionToCommaDelimitedString(keys));
+        }
+        
+        final Map<String, Object> params = new TreeMap<>();
+        params.put("keys", keys);
+        params.put("ts", getTtlTs());
+        final List<T> res = tpl.query("SELECT * FROM kfka WHERE id IN (:keys) AND timestamp > :ts", params, mapper);
         final Map<Long, T> retVal = new HashMap<>(keys.size());
-        res.forEach(e -> {retVal.put(e.getId(), e);});
+        res.forEach(e -> retVal.put(e.getId(), e));
         return retVal;
     }
 
     @Override
     public Iterable<Long> loadAllKeys()
     {
+        final Map<String, Object> params = new TreeMap<>();
+        params.put("ts", getTtlTs());
+
         return new CloseableIterable<Long>()
         {
             @Override
             protected CloseableIterator<Long> closeableIterator()
             {
-                return tpl.queryForIter("SELECT id FROM kfka", Collections.emptyMap(), new RowMapper<Long>()
+                return tpl.queryForIter("SELECT id FROM kfka WHERE timestamp > :ts", params, new RowMapper<Long>()
                 {
                     @Override
                     public Long mapRow(ResultSet rs, int rowNum) throws SQLException

@@ -1,5 +1,8 @@
 package com.ethlo.kfka;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+
 /*-
  * #%L
  * kfka
@@ -43,6 +46,17 @@ public class KfkaConfig
     public KfkaConfig ttl(long duration, TimeUnit unit)
     {
         this.ttlMillis = unit.toMillis(duration);
+        return this;
+    }
+
+    /**
+     * Time to live for the event. Use 0 for forever.
+     * @param duration The duration the entity will be kept
+     * @return This configuration (for fluent programming)
+     */
+    public KfkaConfig ttl(Duration duration)
+    {
+        this.ttlMillis = duration.toMillis();
         return this;
     }
     
