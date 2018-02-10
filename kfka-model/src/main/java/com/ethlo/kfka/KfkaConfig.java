@@ -30,33 +30,22 @@ import com.hazelcast.config.MapStoreConfig.InitialLoadMode;
 public class KfkaConfig
 {
     private String name = "kfka";
-    private long ttlMillis = 0; // Forever
+    private Duration ttl = Duration.ofMillis(0); // Forever
     private int writeDelay = 0; // Direct
     private int batchSize = 500;
     private InitialLoadMode initialLoadMode = InitialLoadMode.EAGER;
     private boolean persistent = true;
     private int maxQuerySize = Integer.MAX_VALUE;
+    private boolean clearExpiredOnStartup = true;
 
     /**
      * Time to live for the event. Use 0 for forever.
-     * @param duration The duration the entity will be kept
-     * @param unit The time unit
+     * @param ttl The duration the entity will be kept
      * @return This configuration (for fluent programming)
      */
-    public KfkaConfig ttl(long duration, TimeUnit unit)
+    public KfkaConfig ttl(Duration ttl)
     {
-        this.ttlMillis = unit.toMillis(duration);
-        return this;
-    }
-
-    /**
-     * Time to live for the event. Use 0 for forever.
-     * @param duration The duration the entity will be kept
-     * @return This configuration (for fluent programming)
-     */
-    public KfkaConfig ttl(Duration duration)
-    {
-        this.ttlMillis = duration.toMillis();
+        this.ttl = ttl;
         return this;
     }
     
@@ -77,9 +66,9 @@ public class KfkaConfig
         return this;
     }
 
-    public long getTtl(TimeUnit unit)
+    public Duration getTtl()
     {
-        return unit.convert(ttlMillis, TimeUnit.MILLISECONDS);
+        return ttl;
     }
     
     public KfkaConfig name(String name)
@@ -134,5 +123,10 @@ public class KfkaConfig
     public int getMaxQuerySize()
     {
         return this.maxQuerySize ;
+    }
+
+    public boolean clearExpiredOnStartup()
+    {
+        return clearExpiredOnStartup ;
     }
 }

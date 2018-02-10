@@ -71,7 +71,7 @@ public class TestCfg
     {
         return new KfkaManagerImpl(hazelcastInstance, mapStore, counterStore, 
             new KfkaConfig()
-                .ttl(300, TimeUnit.SECONDS)
+                .ttl(Duration.ofSeconds(300))
                 .name("kfka")
                 .writeDelay(0)
                 .persistent(true)
