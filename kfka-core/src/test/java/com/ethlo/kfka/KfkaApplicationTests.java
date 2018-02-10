@@ -116,10 +116,16 @@ public class KfkaApplicationTests
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").timestamp(2).build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").timestamp(3).build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").timestamp(4).build());
+        
+        final List<KfkaMessage> messages = new LinkedList<>();
+        
+        kfkaManager.addListener(msg->messages.add(msg), new KfkaPredicate().relativeOffset(-100));
+        assertThat(messages).hasSize(4);
+        
         kfkaManager.cleanExpired();
         kfkaManager.loadAll();
-        final long latest = kfkaManager.findLatest();
-        System.out.println(latest);
+        kfkaManager.addListener(msg->messages.add(msg), new KfkaPredicate().relativeOffset(-100));
+        assertThat(messages).isEmpty();;
     }
     
     @Test

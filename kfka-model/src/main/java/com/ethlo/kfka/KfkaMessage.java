@@ -50,7 +50,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         return topic;
     }
 
-    public long getTimestamp()
+    public Long getTimestamp()
     {
         return timestamp;
     }
@@ -245,7 +245,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
 
     protected abstract void doReadData(ObjectDataInput in) throws IOException;
 
-    protected void timestamp(long timestamp)
+    protected void timestamp(Long timestamp)
     {
         this.timestamp = timestamp;
     }

@@ -147,7 +147,10 @@ public class KfkaManagerImpl implements KfkaManager
     {
         final long id = counter.incrementAndGet();
         msg.id(id);
-        msg.timestamp(System.currentTimeMillis());
+        if (msg.getTimestamp() == null)
+        {
+            msg.timestamp(System.currentTimeMillis());
+        }
         this.messages.put(id, msg, kfkaCfg.getTtl().toMillis() / 1000, TimeUnit.SECONDS);
         return id;
     }
