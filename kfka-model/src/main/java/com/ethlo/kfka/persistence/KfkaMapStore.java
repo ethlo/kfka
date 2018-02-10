@@ -25,5 +25,5 @@ import com.hazelcast.core.MapStore;
 
 public interface KfkaMapStore<T extends KfkaMessage> extends MapStore<Long, T>
 {
-
+    int clearExpired();
 }

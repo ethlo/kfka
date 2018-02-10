@@ -1,5 +1,7 @@
 package com.ethlo.kfka.persistence;
 
+import java.time.Duration;
+
 /*-
  * #%L
  * kfka-core
@@ -22,16 +24,23 @@ package com.ethlo.kfka.persistence;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import com.acme.CustomKfkaMessage;
-import com.ethlo.kfka.persistence.KfkaMapStore;
 
 public class MemoryKfkaMapStore<T> implements KfkaMapStore<CustomKfkaMessage>
 {
-    private ConcurrentMap<Long , CustomKfkaMessage> map = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long , CustomKfkaMessage> map = new ConcurrentHashMap<>();
+    private final Duration ttl;
+    
+    public MemoryKfkaMapStore(Duration ttl)
+    {
+        this.ttl = ttl;
+    }
     
     @Override
     public void store(Long key, CustomKfkaMessage value)
@@ -82,5 +91,24 @@ public class MemoryKfkaMapStore<T> implements KfkaMapStore<CustomKfkaMessage>
     public Iterable<Long> loadAllKeys()
     {
         return map.keySet();
+    }
+
+    @Override
+    public int clearExpired()
+    {
+        final long threshold = System.currentTimeMillis() - ttl.toMillis();
+        final Iterator<Entry<Long, CustomKfkaMessage>> iter = map.entrySet().iterator();
+        int removed = 0;
+        while(iter.hasNext())
+        {
+            final Entry<Long, CustomKfkaMessage> entry = iter.next();
+            final long ts = entry.getValue().getTimestamp();
+            if (ts < threshold)
+            {
+                iter.remove();
+                removed++;
+            }
+        }
+        return removed;
     }
 }

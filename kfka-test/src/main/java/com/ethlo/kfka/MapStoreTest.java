@@ -96,4 +96,16 @@ public abstract class MapStoreTest
         final Map<Long, CustomKfkaMessage> output = mapStore.loadAll(keys);
         assertThat(output).isEmpty();
     }
+    
+    @Test
+    public void testClearExpired()
+    {
+        final Map<Long, CustomKfkaMessage> input = new TreeMap<>();
+        final long key1 = 150;
+        final long key2 = 151;
+        input.put(key1, new CustomKfkaMessage.CustomKfkaMessageBuilder().topic("foobar").type("mytype").payload("hello").id(key1).build());
+        input.put(key2, new CustomKfkaMessage.CustomKfkaMessageBuilder().topic("foobar").type("mytype").payload("goodbye").id(key2).build());
+        mapStore.storeAll(input);
+        mapStore.clearExpired();
+    }
 }

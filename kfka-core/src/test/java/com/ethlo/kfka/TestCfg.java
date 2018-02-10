@@ -1,5 +1,7 @@
 package com.ethlo.kfka;
 
+import java.time.Duration;
+
 /*-
  * #%L
  * kfka-core
@@ -25,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import com.acme.CustomKfkaMessage;
 import com.ethlo.kfka.persistence.KfkaCounterStore;
@@ -51,10 +54,16 @@ public class TestCfg
         return new MemoryKfkaCounterStore();
     }
     
+    @Scheduled(fixedDelay=60_000)
+    public void cleanup(KfkaManager kfkaManager)
+    {
+        kfkaManager.cleanExpired();
+    }
+    
     @Bean
     public KfkaMapStore<CustomKfkaMessage> mapStore()
     {
-        return new MemoryKfkaMapStore<CustomKfkaMessage>();
+        return new MemoryKfkaMapStore<CustomKfkaMessage>(Duration.ofSeconds(300));
     }
     
     @Bean

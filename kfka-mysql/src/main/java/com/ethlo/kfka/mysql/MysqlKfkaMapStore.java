@@ -187,5 +187,12 @@ public class MysqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
     {
         tpl.update("DELETE FROM kfka WHERE id IN (:keys)", Collections.singletonMap("keys", keys));        
     }
+
+    @Override
+    public int clearExpired()
+    {
+        final Map<String, Object> params = Collections.singletonMap("ts", getTtlTs());
+        return tpl.update("DELETE FROM kfka WHERE timestamp < :ts", params);
+    }
 }
 

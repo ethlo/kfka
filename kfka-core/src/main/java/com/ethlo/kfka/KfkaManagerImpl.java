@@ -93,6 +93,7 @@ public class KfkaManagerImpl implements KfkaManager
         mapCfg.setInitialLoadMode(kfkaCfg.getInitialLoadMode());
         
         this.mapStore = mapStore;
+        mapStore.clearExpired();
         this.messages = hazelcastInstance.getMap(kfkaCfg.getName());
         this.counter = hazelcastInstance.getAtomicLong(kfkaCfg.getName());
         
@@ -148,7 +149,7 @@ public class KfkaManagerImpl implements KfkaManager
     }
     
     @Override
-    public void clean()
+    public void cleanExpired()
     {
         final long oldest = System.currentTimeMillis() - kfkaCfg.getTtl(TimeUnit.MILLISECONDS);
         final Predicate<?, ?> p = Predicates.lessThan("timestamp", oldest); 

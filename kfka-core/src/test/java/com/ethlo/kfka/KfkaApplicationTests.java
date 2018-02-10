@@ -115,7 +115,7 @@ public class KfkaApplicationTests
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").build());
-        kfkaManager.clean();
+        kfkaManager.cleanExpired();
     }
     
     @Test
