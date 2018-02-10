@@ -54,7 +54,7 @@ import com.hazelcast.util.IterationType;
 
 public class KfkaManagerImpl implements KfkaManager
 {
-    private final static Logger logger = LoggerFactory.getLogger(KfkaManagerImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(KfkaManagerImpl.class);
 
     private final Map<KfkaMessageListener, KfkaPredicate> msgListeners = new MapMaker()
        .concurrencyLevel(10)
@@ -208,15 +208,8 @@ public class KfkaManagerImpl implements KfkaManager
         
         // Deliver all messages up until now
         FluentIterable.from(hits)
-            .toSortedList(new Comparator<KfkaMessage>()
-            {
-                @Override
-                public int compare(KfkaMessage a, KfkaMessage b)
-                {
-                    return a.getId().compareTo(b.getId());
-                }
-            })
-            .forEach(e -> l.onMessage(e));
+            .toSortedList((a,b)->a.getId().compareTo(b.getId()))
+            .forEach(l::onMessage);
     }
 
     @Override
