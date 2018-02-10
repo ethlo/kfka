@@ -147,7 +147,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
                         + ", type=" + type;
     }
 
-    KfkaMessage id(long id)
+    protected KfkaMessage id(long id)
     {
         this.id = id;
         return this;
@@ -195,7 +195,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         catch (SecurityException | IllegalArgumentException | IllegalAccessException exc)
         {
             Throwables.throwIfUnchecked(exc);
-            throw new RuntimeException(exc);
+            throw new AssertionError(exc);
         } 
     }
     
@@ -245,7 +245,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
 
     protected abstract void doReadData(ObjectDataInput in) throws IOException;
 
-    void timestamp(long timestamp)
+    protected void timestamp(long timestamp)
     {
         this.timestamp = timestamp;
     }

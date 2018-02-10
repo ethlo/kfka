@@ -49,6 +49,7 @@ public class KfkaApplicationTests
     @Test
     public void contextLoads()
     {
+        assertThat(true).isTrue();
     }
 
     @Test
@@ -111,11 +112,14 @@ public class KfkaApplicationTests
     public void testCleanOldMessages() throws InterruptedException
     {
         kfkaManager.clearAll();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").timestamp(1).build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").timestamp(2).build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").timestamp(3).build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").timestamp(4).build());
         kfkaManager.cleanExpired();
+        kfkaManager.loadAll();
+        final long latest = kfkaManager.findLatest();
+        System.out.println(latest);
     }
     
     @Test

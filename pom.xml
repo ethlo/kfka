@@ -42,6 +42,11 @@
 			<url>http://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
 		</repository>
 	</distributionManagement>
+	<scm>
+		<url>http://github.com:ethlo/kfka</url>
+		<connection>scm:git:git@github.com:ethlo/kfka.git</connection>
+		<developerConnection>scm:git:git@github.com:ethlo/kfka.git</developerConnection>
+	</scm>
 	<build>
 		<plugins>
 			<plugin>
@@ -168,11 +173,6 @@
 			</extension>
 		</extensions>
 	</build>
-	<scm>
-		<connection>scm:git:git@github.com:ethlo/kfka.git</connection>
-		<developerConnection>scm:git:git@github.com:ethlo/kfka.git</developerConnection>
-		<url>http://github.com/ethlo/kfka</url>
-	</scm>
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
