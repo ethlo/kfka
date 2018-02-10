@@ -154,6 +154,7 @@ public class KfkaManagerImpl implements KfkaManager
         final long oldest = System.currentTimeMillis() - kfkaCfg.getTtl(TimeUnit.MILLISECONDS);
         final Predicate<?, ?> p = Predicates.lessThan("timestamp", oldest); 
         this.messages.executeOnEntries(cleanProcessor, p);
+        this.mapStore.clearExpired();
     }
 
     @Override
