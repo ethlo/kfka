@@ -124,6 +124,8 @@ public class KfkaApplicationTests
         
         kfkaManager.cleanExpired();
         kfkaManager.loadAll();
+        messages.clear();
+        
         kfkaManager.addListener(msg->messages.add(msg), new KfkaPredicate().relativeOffset(-100));
         assertThat(messages).isEmpty();;
     }
