@@ -27,6 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -34,9 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import com.ethlo.kfka.persistence.KfkaCounterStore;
 import com.ethlo.kfka.persistence.KfkaMapStore;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.MapMaker;
+import com.ethlo.kfka.util.PartitionedIterator;
 import com.hazelcast.aggregation.impl.MaxAggregator;
 import com.hazelcast.aggregation.impl.MinAggregator;
 import com.hazelcast.config.EvictionPolicy;
@@ -56,27 +57,16 @@ public class KfkaManagerImpl implements KfkaManager
 {
     private static final Logger logger = LoggerFactory.getLogger(KfkaManagerImpl.class);
 
-    private final Map<KfkaMessageListener, KfkaPredicate> msgListeners = new MapMaker()
-       .concurrencyLevel(10)
-       .weakKeys()
-       .makeMap();
+    private final Map<KfkaMessageListener, KfkaPredicate> msgListeners = new ConcurrentHashMap<>();
 
     private final IMap<Long, KfkaMessage> messages;
     private final IAtomicLong counter;
     private final KfkaConfig kfkaCfg;
     private final KfkaMapStore<? extends KfkaMessage> mapStore;
     private final CleanProcessor cleanProcessor = new CleanProcessor();
+    private final ScheduledExecutorService taskScheduler;
     
-    private static final Comparator<Entry<Long, KfkaMessage>> ORDER_BY_ID_DESCENDING = new SerializableComparator<Entry<Long, KfkaMessage>>()
-    {
-        private static final long serialVersionUID = 6647415692489347533L;
-
-        @Override
-        public int compare(Entry<Long, KfkaMessage> a, Entry<Long, KfkaMessage> b)
-        {
-            return b.getValue().getId().compareTo(a.getValue().getId());
-        }
-    };
+    private static final Comparator<Entry<Long, KfkaMessage>> ORDER_BY_ID_DESCENDING = (a, b) -> b.getValue().getId().compareTo(a.getValue().getId());
     
     public KfkaManagerImpl(HazelcastInstance hazelcastInstance, KfkaMapStore<? extends KfkaMessage> mapStore, KfkaCounterStore counterStore, KfkaConfig kfkaCfg)
     {
@@ -91,6 +81,9 @@ public class KfkaManagerImpl implements KfkaManager
         mapCfg.setWriteBatchSize(kfkaCfg.getBatchSize());
         mapCfg.setWriteDelaySeconds(kfkaCfg.getWriteDelay());
         mapCfg.setInitialLoadMode(kfkaCfg.getInitialLoadMode());
+        
+        this.taskScheduler = new ScheduledThreadPoolExecutor(1);
+        taskScheduler.scheduleWithFixedDelay(this::cleanExpired, kfkaCfg.getCleanInterval().getSeconds(), kfkaCfg.getCleanInterval().getSeconds(), TimeUnit.SECONDS);
         
         this.mapStore = mapStore;
         
@@ -118,7 +111,7 @@ public class KfkaManagerImpl implements KfkaManager
                     final KfkaMessage msg = event.getValue();
                     
                     // Check if message should be included
-                    if (predicate.toGuavaPredicate().apply(msg))
+                    if (predicate.toPredicate().test(msg))
                     {
                         final KfkaMessageListener l = e.getKey();
                         logger.debug("Sending message {} to {}", event.getValue().getId(), e.getKey());
@@ -216,9 +209,7 @@ public class KfkaManagerImpl implements KfkaManager
         final Collection<KfkaMessage> hits = messages.values(pagingPredicate);
         
         // Deliver all messages up until now
-        FluentIterable.from(hits)
-            .toSortedList((a,b)->a.getId().compareTo(b.getId()))
-            .forEach(l::onMessage);
+        hits.stream().sorted((a,b)->a.getId().compareTo(b.getId())).forEach(l::onMessage);
     }
 
     @Override
@@ -231,7 +222,7 @@ public class KfkaManagerImpl implements KfkaManager
     @Override
     public long loadAll()
     {
-        final Iterator<List<Long>> iter = Iterators.partition(mapStore.loadAllKeys().iterator(), kfkaCfg.getBatchSize());
+        final Iterator<List<Long>> iter = new PartitionedIterator<>(mapStore.loadAllKeys().iterator(), kfkaCfg.getBatchSize());
         while (iter.hasNext())
         {
             messages.getAll(new TreeSet<>(iter.next()));

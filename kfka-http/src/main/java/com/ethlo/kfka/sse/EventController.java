@@ -40,7 +40,6 @@ import com.ethlo.kfka.KfkaManager;
 import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaMessageListener;
 import com.ethlo.kfka.KfkaPredicate;
-import com.google.common.base.Throwables;
 
 @RestController
 public class EventController
@@ -87,9 +86,13 @@ public class EventController
             {
                 emitter.emit(msg);
             }
+            catch (RuntimeException exc)
+            {
+                throw exc;
+            }
             catch (IOException exc)
             {
-                throw Throwables.propagate(exc);
+                throw new AssertionError(exc);
             }
         }, p);
         

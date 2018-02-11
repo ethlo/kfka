@@ -90,13 +90,13 @@ public class KfkaPredicate implements Serializable
         return this;
     }
 
-    public com.google.common.base.Predicate<KfkaMessage> toGuavaPredicate()
+    public java.util.function.Predicate<KfkaMessage> toPredicate()
     {
-        return new com.google.common.base.Predicate<KfkaMessage>()
+        return new java.util.function.Predicate<KfkaMessage>()
         {
             @SuppressWarnings("unchecked")
             @Override
-            public boolean apply(KfkaMessage input)
+            public boolean test(KfkaMessage input)
             {
                 if (topic != null && !topic.equalsIgnoreCase(input.getTopic()))
                 {

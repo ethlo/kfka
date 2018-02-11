@@ -1,13 +1,10 @@
 package com.ethlo.kfka;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-
 /*-
  * #%L
- * kfka
+ * kfka-model
  * %%
- * Copyright (C) 2017 Morten Haraldsen (ethlo)
+ * Copyright (C) 2017 - 2018 Morten Haraldsen (ethlo)
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +20,7 @@ import java.time.temporal.ChronoUnit;
  * #L%
  */
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 import com.hazelcast.config.MapStoreConfig.InitialLoadMode;
 
@@ -37,6 +34,7 @@ public class KfkaConfig
     private boolean persistent = true;
     private int maxQuerySize = Integer.MAX_VALUE;
     private boolean clearExpiredOnStartup = true;
+    private Duration cleanInterval = Duration.ofHours(1);
 
     /**
      * Time to live for the event. Use 0 for forever.
@@ -128,5 +126,15 @@ public class KfkaConfig
     public boolean clearExpiredOnStartup()
     {
         return clearExpiredOnStartup ;
+    }
+
+    public Duration getCleanInterval()
+    {
+        return cleanInterval;
+    }
+
+    public void setCleanInterval(Duration cleanInterval)
+    {
+        this.cleanInterval = cleanInterval;
     }
 }

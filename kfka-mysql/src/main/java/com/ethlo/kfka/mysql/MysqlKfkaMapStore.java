@@ -2,9 +2,9 @@ package com.ethlo.kfka.mysql;
 
 /*-
  * #%L
- * kfka
+ * kfka-mysql
  * %%
- * Copyright (C) 2017 Morten Haraldsen (ethlo)
+ * Copyright (C) 2017 - 2018 Morten Haraldsen (ethlo)
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,9 @@ package com.ethlo.kfka.mysql;
  * #L%
  */
 
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
@@ -36,26 +39,29 @@ import javax.sql.DataSource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.util.StringUtils;
 
-import com.alexkasko.springjdbc.iterable.CloseableIterable;
-import com.alexkasko.springjdbc.iterable.CloseableIterator;
-import com.alexkasko.springjdbc.iterable.IterableNamedParameterJdbcTemplate;
 import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.persistence.KfkaMapStore;
+import com.ethlo.kfka.util.AbstractIterator;
 
 public class MysqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
 {
     private static final Logger logger = LoggerFactory.getLogger(MysqlKfkaMapStore.class);
     
-    private final IterableNamedParameterJdbcTemplate tpl;
+    private final NamedParameterJdbcTemplate tpl;
     private final RowMapper<T> mapper;
     private final Duration ttl;
+
+    private DataSource dataSource;
     
     public MysqlKfkaMapStore(DataSource dataSource, RowMapper<T> mapper, Duration ttl)
     {
-        this.tpl = new IterableNamedParameterJdbcTemplate(dataSource);
+        this.tpl = new NamedParameterJdbcTemplate(dataSource);
+        this.dataSource = dataSource;
         this.mapper = mapper;
         this.ttl = ttl;
     }
@@ -100,22 +106,58 @@ public class MysqlKfkaMapStore<T extends KfkaMessage> implements KfkaMapStore<T>
     @Override
     public Iterable<Long> loadAllKeys()
     {
-        final Map<String, Object> params = new TreeMap<>();
-        params.put("ts", getTtlTs());
-
-        return new CloseableIterable<Long>()
+        final String sql = "SELECT id FROM kfka WHERE timestamp > ?";
+        
+        Connection conn;
+        PreparedStatement stmt;
+        ResultSet rs;
+        
+        try
+        {
+            conn = dataSource.getConnection();
+            stmt = conn.prepareStatement(sql);
+            stmt.setLong(1, getTtlTs());
+            rs = stmt.executeQuery();
+        }
+        catch (SQLException e )
+        {
+            throw new DataAccessResourceFailureException(e.getMessage(), e);
+        }        
+        
+        return () -> new AbstractIterator<Long>()
         {
             @Override
-            protected CloseableIterator<Long> closeableIterator()
+            protected Long computeNext()
             {
-                return tpl.queryForIter("SELECT id FROM kfka WHERE timestamp > :ts", params, new RowMapper<Long>()
+                try
                 {
-                    @Override
-                    public Long mapRow(ResultSet rs, int rowNum) throws SQLException
+                    if (rs.next())
                     {
                         return rs.getLong("id");
                     }
-                });
+                }
+                catch (SQLException exc)
+                {
+                    throw new DataAccessResourceFailureException(exc.getMessage(), exc);
+                }
+                
+                return endOfData();
+            }
+
+            @Override
+            public void close() throws IOException
+            {
+                logger.debug("Closing iterator");
+                try
+                {
+                    rs.close();
+                    stmt.close();
+                    conn.close();
+                }
+                catch (SQLException exc)
+                {
+                    throw new DataAccessResourceFailureException(exc.getMessage(), exc);
+                }
             }
         };
     }

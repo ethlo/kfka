@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 
-import com.google.common.base.Throwables;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.DataSerializable;
@@ -192,9 +191,12 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
             }
             return queryableFields;
         }
-        catch (SecurityException | IllegalArgumentException | IllegalAccessException exc)
+        catch (RuntimeException exc)
         {
-            Throwables.throwIfUnchecked(exc);
+            throw exc;
+        }
+        catch (IllegalAccessException exc)
+        {
             throw new AssertionError(exc);
         } 
     }
