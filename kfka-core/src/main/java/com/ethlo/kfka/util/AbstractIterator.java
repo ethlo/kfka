@@ -45,18 +45,17 @@ import java.util.NoSuchElementException;
  */
 public abstract class AbstractIterator<T> implements Iterator<T>, Closeable
 {
-    private State state = State.NOT_READY;
-
-    protected AbstractIterator()
-    {
-    }
-
     private enum State
     {
         READY, NOT_READY, DONE, FAILED,
     }
 
+    private State state = State.NOT_READY;
     private T next;
+
+    protected AbstractIterator()
+    {
+    }
 
     protected abstract T computeNext();
 
