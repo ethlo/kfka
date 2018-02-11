@@ -127,7 +127,7 @@ public class KfkaApplicationTests
         messages.clear();
         
         kfkaManager.addListener(msg->messages.add(msg), new KfkaPredicate().relativeOffset(-100));
-        assertThat(messages).isEmpty();;
+        assertThat(messages).isEmpty();
     }
     
     @Test
