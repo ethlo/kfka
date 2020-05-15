@@ -1,6 +1,13 @@
 package com.ethlo.kfka.persistence;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
+
+import com.acme.CustomKfkaMessage;
 
 /*-
  * #%L
@@ -11,9 +18,9 @@ import java.time.Duration;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,34 +29,24 @@ import java.time.Duration;
  * #L%
  */
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
-import com.acme.CustomKfkaMessage;
-
 public class MemoryKfkaMapStore<T> implements KfkaMapStore<CustomKfkaMessage>
 {
-    private final ConcurrentMap<Long , CustomKfkaMessage> map = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, MetadataAwareValue<CustomKfkaMessage>> map = new ConcurrentHashMap<>();
     private final Duration ttl;
-    
+
     public MemoryKfkaMapStore(Duration ttl)
     {
         this.ttl = ttl;
     }
-    
+
     @Override
-    public void store(Long key, CustomKfkaMessage value)
+    public void store(Long key, MetadataAwareValue<CustomKfkaMessage> value)
     {
         map.put(key, value);
     }
 
     @Override
-    public void storeAll(Map<Long, CustomKfkaMessage> map)
+    public void storeAll(Map<Long, MetadataAwareValue<CustomKfkaMessage>> map)
     {
         this.map.putAll(map);
     }
@@ -63,28 +60,19 @@ public class MemoryKfkaMapStore<T> implements KfkaMapStore<CustomKfkaMessage>
     @Override
     public void deleteAll(Collection<Long> keys)
     {
-        keys.forEach(key->map.remove(key));
+        keys.forEach(map::remove);
     }
 
     @Override
-    public CustomKfkaMessage load(Long key)
+    public MetadataAwareValue<CustomKfkaMessage> load(Long key)
     {
         return map.get(key);
     }
 
     @Override
-    public Map<Long, CustomKfkaMessage> loadAll(Collection<Long> keys)
+    public Map<Long, MetadataAwareValue<CustomKfkaMessage>> loadAll(Collection<Long> keys)
     {
-        //return keys.stream().collect(Collectors.toMap(k->k, k->map.get(k)));
-        final Map<Long, CustomKfkaMessage> retVal = new HashMap<>(keys.size());
-        keys.forEach(k->{
-            final CustomKfkaMessage val = map.get(k);
-            if (val != null)
-            {
-                retVal.put(k, val);
-            }
-        });
-        return retVal;
+        return keys.stream().collect(Collectors.toMap(k -> k, this::load));
     }
 
     @Override
@@ -94,21 +82,8 @@ public class MemoryKfkaMapStore<T> implements KfkaMapStore<CustomKfkaMessage>
     }
 
     @Override
-    public int clearExpired()
+    public Duration getTTL()
     {
-        final long threshold = System.currentTimeMillis() - ttl.toMillis();
-        final Iterator<Entry<Long, CustomKfkaMessage>> iter = map.entrySet().iterator();
-        int removed = 0;
-        while(iter.hasNext())
-        {
-            final Entry<Long, CustomKfkaMessage> entry = iter.next();
-            final long ts = entry.getValue().getTimestamp();
-            if (ts < threshold)
-            {
-                iter.remove();
-                removed++;
-            }
-        }
-        return removed;
+        return ttl;
     }
 }

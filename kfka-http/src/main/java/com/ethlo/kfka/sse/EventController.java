@@ -140,7 +140,7 @@ public class EventController
             {
                 this.emitter.send(SseEmitter.event()
                     .id(Long.toString(event.getId()))
-                    .data(event.getPayload(), MediaType.APPLICATION_JSON_UTF8));
+                    .data(event.getPayload(), MediaType.APPLICATION_JSON));
             }
             catch (IllegalStateException exc)
             {

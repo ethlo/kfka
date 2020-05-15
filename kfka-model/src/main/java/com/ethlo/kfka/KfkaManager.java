@@ -24,8 +24,6 @@ public interface KfkaManager
 {
     long add(KfkaMessage msg);
 
-    void cleanExpired();
-    
     void clearAll();
 
     long findfirst();

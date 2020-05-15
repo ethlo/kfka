@@ -9,9 +9,9 @@ package com.ethlo.kfka.persistence;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,10 +20,24 @@ package com.ethlo.kfka.persistence;
  * #L%
  */
 
-import com.ethlo.kfka.KfkaMessage;
-import com.hazelcast.core.MapStore;
+import java.time.Duration;
 
-public interface KfkaMapStore<T extends KfkaMessage> extends MapStore<Long, T>
+import com.ethlo.kfka.KfkaMessage;
+import com.hazelcast.map.EntryLoader;
+import com.hazelcast.map.EntryStore;
+
+public interface KfkaMapStore<T extends KfkaMessage> extends EntryLoader<Long, T>, EntryStore<Long, T>
 {
-    int clearExpired();
+    static long entryTTL(KfkaMessage value, Duration ttl)
+    {
+        final long now = System.currentTimeMillis();
+        return Math.max(0, ((value.getTimestamp() + ttl.toMillis()) - now));
+    }
+
+    default MetadataAwareValue<T> wrap(T payload)
+    {
+        return new MetadataAwareValue<>(payload, getTTL().toMillis());
+    }
+
+    Duration getTTL();
 }
