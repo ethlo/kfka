@@ -9,9 +9,9 @@ package com.ethlo.kfka;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,47 +26,26 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.acme.CustomKfkaMessage;
-import com.ethlo.kfka.persistence.KfkaCounterStore;
-import com.ethlo.kfka.persistence.KfkaMapStore;
-import com.ethlo.kfka.persistence.MemoryKfkaCounterStore;
-import com.ethlo.kfka.persistence.MemoryKfkaMapStore;
-import com.hazelcast.config.MapStoreConfig.InitialLoadMode;
-import com.hazelcast.core.Hazelcast;
-import com.hazelcast.core.HazelcastInstance;
+import com.ethlo.kfka.persistence.KfkaMessageStore;
+import com.ethlo.kfka.persistence.MemoryKfkaMessageStore;
 
 @Configuration
 @EnableAutoConfiguration
 public class TestCfg
 {
-    @Bean(destroyMethod = "shutdown")
-    public HazelcastInstance hazelcastInstance()
+    @Bean
+    public KfkaMessageStore mapStore()
     {
-        return Hazelcast.newHazelcastInstance();
+        return new MemoryKfkaMessageStore();
     }
 
     @Bean
-    public KfkaCounterStore counterStore()
+    public KfkaManager kfkaConsumer(KfkaMessageStore mapStore)
     {
-        return new MemoryKfkaCounterStore();
-    }
-
-    @Bean
-    public KfkaMapStore<CustomKfkaMessage> mapStore()
-    {
-        return new MemoryKfkaMapStore<CustomKfkaMessage>(Duration.ofSeconds(300));
-    }
-
-    @Bean
-    public KfkaManager kfkaConsumer(HazelcastInstance hazelcastInstance, KfkaMapStore<CustomKfkaMessage> mapStore, KfkaCounterStore counterStore)
-    {
-        return new KfkaManagerImpl(hazelcastInstance, mapStore, counterStore,
+        return new KfkaManagerImpl(mapStore,
                 new KfkaConfig()
                         .ttl(Duration.ofSeconds(300))
                         .name("kfka")
-                        .writeDelay(0)
-                        .persistent(true)
-                        .initialLoadMode(InitialLoadMode.EAGER)
                         .batchSize(250)
         );
     }

@@ -1,10 +1,10 @@
-package com.ethlo.kfka.util;
+package com.ethlo.kfka.persistence;
 
 /*-
  * #%L
  * kfka-core
  * %%
- * Copyright (C) 2017 - 2018 Morten Haraldsen (ethlo)
+ * Copyright (C) 2017 Morten Haraldsen (ethlo)
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,27 @@ package com.ethlo.kfka.util;
  * #L%
  */
 
-import java.io.Closeable;
-import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicLong;
 
-public interface CloseableIterator<T> extends Iterator<T>, Closeable
+public class MemoryKfkaCounterStore implements KfkaCounterStore
 {
+    final AtomicLong counter = new AtomicLong();
+
     @Override
-    void close();
+    public long latest()
+    {
+        return counter.get();
+    }
+
+    @Override
+    public long increment()
+    {
+        return counter.incrementAndGet();
+    }
+
+    @Override
+    public void reset()
+    {
+        counter.set(0);
+    }
 }

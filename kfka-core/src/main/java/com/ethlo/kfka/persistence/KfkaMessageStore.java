@@ -1,4 +1,4 @@
-package com.ethlo.kfka;
+package com.ethlo.kfka.persistence;
 
 /*-
  * #%L
@@ -20,21 +20,28 @@ package com.ethlo.kfka;
  * #L%
  */
 
-import java.util.LinkedList;
-import java.util.List;
+import java.util.Collection;
+import java.util.Optional;
 
-public class CollectingListener implements KfkaMessageListener
+import com.ethlo.kfka.KfkaMessage;
+import com.ethlo.kfka.KfkaMessageListener;
+import com.ethlo.kfka.util.CloseableIterator;
+
+public interface KfkaMessageStore
 {
-    private final List<KfkaMessage> received = new LinkedList<>();
+    <T extends KfkaMessage> void add(T message);
 
-    @Override
-    public void onMessage(KfkaMessage msg)
-    {
-        received.add(msg);
-    }
+    <T extends KfkaMessage> CloseableIterator<T> tail();
 
-    public List<KfkaMessage> getReceived()
-    {
-        return received;
-    }
+    <T extends KfkaMessage> CloseableIterator<T> head();
+
+    <T extends KfkaMessage> void addAll(Collection<T> data);
+
+    long size();
+
+    void clear();
+
+    void sendAfter(long messageId, KfkaMessageListener l);
+
+    Optional<Long> getOffsetMessageId(int offset);
 }

@@ -17,11 +17,7 @@ import com.ethlo.kfka.KfkaConfig;
 import com.ethlo.kfka.KfkaManager;
 import com.ethlo.kfka.KfkaManagerImpl;
 import com.ethlo.kfka.persistence.KfkaCounterStore;
-import com.ethlo.kfka.persistence.KfkaMapStore;
-import com.hazelcast.config.MapStoreConfig.InitialLoadMode;
-import com.hazelcast.core.Hazelcast;
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.map.EntryLoader;
+import com.ethlo.kfka.persistence.KfkaMessageStore;
 
 /*-
  * #%L
@@ -55,48 +51,30 @@ public class TestCfg
         return flyway;
     }
 
-    @Bean(destroyMethod = "shutdown")
-    public HazelcastInstance hazelcastInstance()
-    {
-        return Hazelcast.newHazelcastInstance();
-    }
-
     @Bean
-    public KfkaCounterStore counterStore(DataSource ds)
-    {
-        return new MysqlKfkaCounterStore(ds);
-    }
-
-    @Bean
-    public KfkaMapStore<CustomKfkaMessage> mapStore(DataSource ds)
+    public KfkaMessageStore mapStore(DataSource ds)
     {
         final Duration ttl = Duration.ofSeconds(300);
-        final RowMapper<EntryLoader.MetadataAwareValue<CustomKfkaMessage>> ROW_MAPPER = (rs, rowNum) ->
-        {
-            final CustomKfkaMessage value = new CustomKfkaMessageBuilder()
-                    .userId(rs.getInt("userId"))
-                    .payload(rs.getBytes("payload"))
-                    .timestamp(rs.getLong("timestamp"))
-                    .topic(rs.getString("topic"))
-                    .type(rs.getString("type"))
-                    .id(rs.getLong("id"))
-                    .build();
-            return new EntryLoader.MetadataAwareValue<>(value, KfkaMapStore.entryTTL(value, ttl));
-        };
+        final RowMapper<CustomKfkaMessage> ROW_MAPPER = (rs, rowNum) ->
+                new CustomKfkaMessageBuilder()
+                        .userId(rs.getInt("userId"))
+                        .payload(rs.getBytes("payload"))
+                        .timestamp(rs.getLong("timestamp"))
+                        .topic(rs.getString("topic"))
+                        .type(rs.getString("type"))
+                        .id(rs.getLong("id"))
+                        .build();
 
-        return new MysqlKfkaMapStore<>(ds, ROW_MAPPER, ttl);
+        return new MysqlKfkaMessageStore(ds, ROW_MAPPER, ttl);
     }
 
     @Bean
-    public KfkaManager kfkaManager(HazelcastInstance hazelcastInstance, KfkaMapStore<CustomKfkaMessage> mapStore, KfkaCounterStore counterStore)
+    public KfkaManager kfkaManager(KfkaMessageStore messageStore)
     {
-        return new KfkaManagerImpl(hazelcastInstance, mapStore, counterStore,
+        return new KfkaManagerImpl(messageStore,
                 new KfkaConfig()
                         .ttl(Duration.of(300, ChronoUnit.SECONDS))
                         .name("kfka")
-                        .writeDelay(0)
-                        .persistent(true)
-                        .initialLoadMode(InitialLoadMode.EAGER)
                         .batchSize(250)
         );
     }

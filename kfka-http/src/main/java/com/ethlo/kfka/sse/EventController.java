@@ -9,9 +9,9 @@ package com.ethlo.kfka.sse;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -45,42 +45,40 @@ import com.ethlo.kfka.KfkaPredicate;
 public class EventController
 {
     private final static Logger logger = LoggerFactory.getLogger(EventController.class);
-    
-    @Autowired
-    private KfkaManager kfkaManager;
-    
     // Set of current connections
     private final Set<Emitter> emitters = Collections.newSetFromMap(new ConcurrentHashMap<Emitter, Boolean>());
-        
-    @RequestMapping(value="/v1/events", method=RequestMethod.GET)
-    public SseEmitter event( 
-        @RequestHeader(value="Last-Event-ID", required=false) String lastEventIdHeader,
-        @RequestParam(required=true, value="topic") String topic,
-        @RequestParam(required=false, value="rewind") Integer rewind,
-        @RequestParam(required=false, value="lastEventId") Long lastEventIdOverride
-        ) throws IOException
+    @Autowired
+    private KfkaManager kfkaManager;
+
+    @RequestMapping(value = "/v1/events", method = RequestMethod.GET)
+    public SseEmitter event(
+            @RequestHeader(value = "Last-Event-ID", required = false) String lastEventIdHeader,
+            @RequestParam(required = true, value = "topic") String topic,
+            @RequestParam(required = false, value = "rewind") Integer rewind,
+            @RequestParam(required = false, value = "lastEventId") Long lastEventIdOverride
+    ) throws IOException
     {
         final SseEmitter sseEmitter = new SseEmitter();
         final Emitter emitter = new Emitter(sseEmitter);
-        
+
         logger.debug("Opening emitter {}", emitter.hashCode());
         this.emitters.add(emitter);
-        
+
         final Long lastEventId = lastEventIdOverride != null ? lastEventIdOverride : (lastEventIdHeader != null ? Long.parseLong(lastEventIdHeader) : null);
-        
+
         final KfkaPredicate p = new KfkaPredicate().topic(topic);
         if (lastEventId != null)
         {
             p.messageId(lastEventId + 1);
-            p.relativeOffset(Integer.MIN_VALUE + 10);
+            p.rewind(Integer.MIN_VALUE + 10);
         }
         else
         {
             final int offset = rewind != null ? Math.abs(rewind) * -1 : -20;
-            p.relativeOffset(offset);
+            p.rewind(offset);
         }
-        
-        final KfkaMessageListener l = kfkaManager.addListener((msg)->
+
+        final KfkaMessageListener l = kfkaManager.addListener((msg) ->
         {
             try
             {
@@ -95,9 +93,9 @@ public class EventController
                 throw new AssertionError(exc);
             }
         }, p);
-        
+
         emitter.setListener(l);
-        
+
         // Remove on completion
         sseEmitter.onCompletion(new Runnable()
         {
@@ -110,7 +108,7 @@ public class EventController
             }
         });
 
-        
+
         return sseEmitter;
     }
 
@@ -118,15 +116,10 @@ public class EventController
     {
         private final SseEmitter emitter;
         private KfkaMessageListener listener;
-        
+
         public Emitter(SseEmitter emitter)
         {
             this.emitter = emitter;
-        }
-        
-        public void setListener(KfkaMessageListener l)
-        {
-            this.listener = l;
         }
 
         public KfkaMessageListener getListener()
@@ -134,13 +127,18 @@ public class EventController
             return this.listener;
         }
 
+        public void setListener(KfkaMessageListener l)
+        {
+            this.listener = l;
+        }
+
         public void emit(KfkaMessage event) throws IOException
         {
             try
             {
                 this.emitter.send(SseEmitter.event()
-                    .id(Long.toString(event.getId()))
-                    .data(event.getPayload(), MediaType.APPLICATION_JSON));
+                        .id(Long.toString(event.getId()))
+                        .data(event.getPayload(), MediaType.APPLICATION_JSON));
             }
             catch (IllegalStateException exc)
             {

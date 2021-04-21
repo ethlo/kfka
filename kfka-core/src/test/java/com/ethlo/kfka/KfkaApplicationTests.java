@@ -20,7 +20,7 @@ package com.ethlo.kfka;
  * #L%
  */
 
-import static org.fest.assertions.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -55,7 +55,7 @@ public class KfkaApplicationTests
     @Test
     public void testQueryLast() throws InterruptedException
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
 
         for (int i = 0; i < 1_000; i++)
         {
@@ -64,11 +64,9 @@ public class KfkaApplicationTests
 
         final List<KfkaMessage> received = new LinkedList<>();
 
-        kfkaManager.addListener(received::add, new KfkaPredicate().relativeOffset(-1));
+        kfkaManager.addListener(received::add, new KfkaPredicate().rewind(1));
 
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage").topic("mytopic").type("mytype").build());
-
-        Thread.sleep(100);
 
         assertThat(received).hasSize(2);
         assertThat(received.get(0).getPayload()).isEqualTo("999".getBytes());
@@ -78,7 +76,7 @@ public class KfkaApplicationTests
     @Test
     public void testQuerySinceBeginningFilteredByTopic()
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
 
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
@@ -97,7 +95,7 @@ public class KfkaApplicationTests
     @Test
     public void testCleanOldMessages()
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").timestamp(1).build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").timestamp(2).build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").timestamp(3).build());
@@ -105,29 +103,30 @@ public class KfkaApplicationTests
 
         final List<KfkaMessage> messages = new LinkedList<>();
 
-        kfkaManager.addListener(messages::add, new KfkaPredicate().relativeOffset(-100));
+        kfkaManager.addListener(messages::add, new KfkaPredicate().rewind(100));
         assertThat(messages).hasSize(4);
 
-        kfkaManager.loadAll();
         messages.clear();
+        kfkaManager.clear();
 
-        kfkaManager.addListener(messages::add, new KfkaPredicate().relativeOffset(-100));
+        kfkaManager.addListener(messages::add, new KfkaPredicate().rewind(100));
         assertThat(messages).isEmpty();
     }
 
     @Test
     public void testSize()
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
         assertThat(kfkaManager.size()).isEqualTo(2);
     }
 
+    /*
     @Test
     public void testFindFirst()
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
         final long a = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
         final long first = kfkaManager.findfirst();
@@ -137,35 +136,25 @@ public class KfkaApplicationTests
     @Test
     public void testFindLatest()
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
         final long b = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
         final long latest = kfkaManager.findLatest();
         assertThat(latest).isEqualTo(b);
     }
-
-    @Test
-    public void testDeleteMessages()
-    {
-        kfkaManager.clearAll();
-        final long id = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
-        final long left = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
-        kfkaManager.delete(id);
-        assertThat(kfkaManager.size()).isEqualTo(1);
-        assertThat(kfkaManager.findfirst()).isEqualTo(left);
-    }
+    */
 
     @Test
     public void testQueryWithRelativeOffsetFilteredByTopic()
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").build());
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").build());
 
         final List<KfkaMessage> received = new LinkedList<>();
-        kfkaManager.addListener(received::add, new KfkaPredicate().topic("bar").relativeOffset(-1));
+        kfkaManager.addListener(received::add, new KfkaPredicate().topic("bar").rewind(-1));
 
         assertThat(received).hasSize(1);
         assertThat(received.get(0).getId()).isEqualTo(4);
@@ -174,7 +163,7 @@ public class KfkaApplicationTests
     @Test
     public void testQueryWithRelativeOffsetFilteredByTopicAndCustomProperty() throws InterruptedException
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
 
         kfkaManager.add(new CustomKfkaMessageBuilder()
                 .userId(321)
@@ -193,7 +182,7 @@ public class KfkaApplicationTests
         final CollectingListener collListener = new CollectingListener();
         kfkaManager.addListener(collListener, new KfkaPredicate()
                 .topic("bar")
-                .relativeOffset(-10)
+                .rewind(-10)
                 .addPropertyMatch("userId", 123));
 
         assertThat(collListener.getReceived()).hasSize(1);
@@ -223,7 +212,7 @@ public class KfkaApplicationTests
     @Test
     public void testLastMessageId()
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
         final CustomKfkaMessage msg1 = new CustomKfkaMessageBuilder().payload("myMessage1")
                 .topic("foo")
                 .payload("msg1")
@@ -247,14 +236,10 @@ public class KfkaApplicationTests
     @Test
     public void testMessagesPersisted() throws InterruptedException
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
                 .topic("foo")
                 .type("mytype").build());
-        kfkaManager.clearCache();
-        Thread.sleep(1500);
-        long count = kfkaManager.loadAll();
-        assertThat(count).isEqualTo(1);
         final CollectingListener l = new CollectingListener();
         kfkaManager.addListener(l, new KfkaPredicate().messageId(0));
         assertThat(l.getReceived()).hasSize(1);
@@ -263,7 +248,7 @@ public class KfkaApplicationTests
     @Test
     public void testPerformance1()
     {
-        kfkaManager.clearAll();
+        kfkaManager.clear();
 
         final int count = 10_000;
         final StopWatch sw = new StopWatch();
@@ -295,7 +280,7 @@ public class KfkaApplicationTests
         final CollectingListener collListener = new CollectingListener();
         kfkaManager.addListener(collListener, new KfkaPredicate()
                 .topic("bar")
-                .relativeOffset(-(count + 10))
+                .rewind(count + 10)
                 .addPropertyMatch("userId", 123));
         sw.stop();
         assertThat(collListener.getReceived()).hasSize(count);

@@ -1,10 +1,10 @@
-package com.ethlo.kfka.util;
+package com.ethlo.kfka;
 
 /*-
  * #%L
- * kfka-core
+ * kfka
  * %%
- * Copyright (C) 2017 - 2018 Morten Haraldsen (ethlo)
+ * Copyright (C) 2017 Morten Haraldsen (ethlo)
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,7 @@ package com.ethlo.kfka.util;
  * #L%
  */
 
-import java.io.Closeable;
-import java.util.Iterator;
-
-public interface CloseableIterator<T> extends Iterator<T>, Closeable
+public interface KfkaMessageListener
 {
-    @Override
-    void close();
+    void onMessage(KfkaMessage msg);
 }
