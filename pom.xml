@@ -11,7 +11,6 @@
     <modules>
         <module>kfka-core</module>
         <module>kfka-mysql</module>
-        <module>kfka-http</module>
     </modules>
     <parent>
         <groupId>org.springframework.boot</groupId>
