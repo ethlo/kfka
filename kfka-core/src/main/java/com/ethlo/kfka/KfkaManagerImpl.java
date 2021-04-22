@@ -129,4 +129,10 @@ public class KfkaManagerImpl implements KfkaManager
     {
         this.msgListeners.remove(listener);
     }
+
+    @Override
+    public void evictExpired()
+    {
+        this.kfkaMessageStore.clearExpired();
+    }
 }

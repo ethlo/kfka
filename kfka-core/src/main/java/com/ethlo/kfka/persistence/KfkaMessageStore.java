@@ -36,7 +36,7 @@ public interface KfkaMessageStore
 
     <T extends KfkaMessage> CloseableIterator<T> head();
 
-    <T extends KfkaMessage> void addAll(Collection<T> data);
+//    <T extends KfkaMessage> void addAll(Collection<T> data);
 
     long size();
 
@@ -45,4 +45,6 @@ public interface KfkaMessageStore
     void sendAfter(long messageId, final KfkaPredicate predicate, KfkaMessageListener l);
 
     Optional<Long> getOffsetMessageId(int offset, final KfkaPredicate predicate);
+
+    long clearExpired();
 }

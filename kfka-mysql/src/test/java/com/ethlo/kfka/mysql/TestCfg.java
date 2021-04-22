@@ -9,7 +9,6 @@ import org.flywaydb.core.Flyway;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.core.RowMapper;
 
 import com.acme.CustomKfkaMessage;
 import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
@@ -54,7 +53,7 @@ public class TestCfg
     public KfkaMessageStore mapStore(DataSource ds)
     {
         final Duration ttl = Duration.ofMinutes(30);
-        final RowMapper<CustomKfkaMessage> ROW_MAPPER = (rs, rowNum) ->
+        final RowMapper<CustomKfkaMessage> ROW_MAPPER = rs ->
                 new CustomKfkaMessageBuilder()
                         .userId(rs.getInt("userId"))
                         .payload(rs.getBytes("payload"))

@@ -242,7 +242,7 @@ public class KfkaApplicationTests
     }
 
     @Test
-    public void testMessagesPersisted() throws InterruptedException
+    public void testMessagesPersisted()
     {
         kfkaManager.clear();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
@@ -251,6 +251,20 @@ public class KfkaApplicationTests
         final CollectingListener l = new CollectingListener();
         kfkaManager.addListener(l, new KfkaPredicate().lastSeenMessageId(0));
         assertThat(l.getReceived()).hasSize(1);
+    }
+
+    @Test
+    public void testMessagesExpire()
+    {
+        kfkaManager.clear();
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
+                .topic("foo")
+                .timestamp(0)
+                .type("mytype").build());
+        final CollectingListener l = new CollectingListener();
+        kfkaManager.evictExpired();
+        kfkaManager.addListener(l, new KfkaPredicate().lastSeenMessageId(0));
+        assertThat(l.getReceived()).isEmpty();
     }
 
     @Test

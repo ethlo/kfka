@@ -36,4 +36,6 @@ public interface KfkaManager
     void clear();
 
     void removeListener(KfkaMessageListener listener);
+
+    void evictExpired();
 }

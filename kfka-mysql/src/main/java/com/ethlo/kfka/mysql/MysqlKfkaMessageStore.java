@@ -27,25 +27,19 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessResourceFailureException;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.util.StringUtils;
 
 import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaMessageListener;
@@ -58,18 +52,18 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
 {
     private static final Logger logger = LoggerFactory.getLogger(MysqlKfkaMessageStore.class);
 
-    private final NamedParameterJdbcTemplate tpl;
     private final RowMapper<B> mapper;
     private final Duration ttl;
 
     private final DataSource dataSource;
+    private final SimpleJdbcTemplate simpleTpl;
 
     public MysqlKfkaMessageStore(DataSource dataSource, RowMapper<B> mapper, Duration ttl)
     {
-        this.tpl = new NamedParameterJdbcTemplate(dataSource);
         this.dataSource = dataSource;
         this.mapper = mapper;
         this.ttl = ttl;
+        this.simpleTpl = new SimpleJdbcTemplate(dataSource);
     }
 
     private long getTtlTs()
@@ -105,9 +99,9 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
             }
             rs = stmt.executeQuery();
         }
-        catch (SQLException e)
+        catch (SQLException exc)
         {
-            throw new DataAccessResourceFailureException(e.getMessage(), e);
+            throw new RuntimeSqlException(exc);
         }
 
         return new AbstractIterator<T>()
@@ -119,12 +113,12 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
                 {
                     if (rs.next())
                     {
-                        return (T) mapper.mapRow(rs, 0);
+                        return (T) mapper.mapRow(rs);
                     }
                 }
                 catch (SQLException exc)
                 {
-                    throw new DataAccessResourceFailureException(exc.getMessage(), exc);
+                    throw new RuntimeSqlException(exc);
                 }
 
                 return endOfData();
@@ -142,7 +136,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
                 }
                 catch (SQLException exc)
                 {
-                    throw new DataAccessResourceFailureException(exc.getMessage(), exc);
+                    throw new RuntimeSqlException(exc);
                 }
             }
         };
@@ -179,22 +173,38 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     @Override
     public <T extends KfkaMessage> void add(T value)
     {
-        final Map<String, ?> params = getInsertParams(value);
+        final List<Object> params = getInsertParams(value);
         final String sql = getInsertSql(value);
-        final KeyHolder keyHolder = new GeneratedKeyHolder();
-        tpl.update(sql, new MapSqlParameterSource(params), keyHolder);
-        value.setId(keyHolder.getKeyAs(Long.class));
+        final long newId = simpleTpl.insert(sql, params);
+        value.setId(newId);
     }
 
     private <T extends KfkaMessage> String getInsertSql(T value)
     {
         final Collection<String> extraProps = value.getQueryableProperties();
-        final String extraColsStr = (extraProps.isEmpty() ? "" : (", " + StringUtils.collectionToCommaDelimitedString(extraProps)));
-        final String extraColPlaceholdersStr = (extraProps.isEmpty() ? "" : (", :" + StringUtils.collectionToDelimitedString(extraProps, ", :")));
-        return "INSERT INTO kfka (id, topic, type, timestamp, payload" + extraColsStr + ")"
-                + " VALUES(:id, :topic, :type, :timestamp, :payload" + extraColPlaceholdersStr + ")";
+        final String extraColsStr = (extraProps.isEmpty() ? "" : (", " + collectionToDelimitedString(extraProps, ", ")));
+        return "INSERT INTO kfka (id, type, topic, timestamp, payload" + extraColsStr + ")"
+                + " VALUES(" + repeat(5 + extraProps.size(), "?", ", ") + ")";
     }
 
+    private String collectionToDelimitedString(Collection<?> props, String delim)
+    {
+        return props.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(delim));
+    }
+
+    private String repeat(int size, String s, String delim)
+    {
+        final List<String> tmp = new ArrayList<>(size);
+        for (int i = 0; i < size; i++)
+        {
+            tmp.add(s);
+        }
+        return collectionToDelimitedString(tmp, delim);
+    }
+
+    /*
     @SuppressWarnings("unchecked")
     @Override
     public <T extends KfkaMessage> void addAll(Collection<T> data)
@@ -213,37 +223,34 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
         }
         tpl.batchUpdate(sql, parameters.toArray(new Map[0]));
     }
-
+*/
     @Override
     public long size()
     {
-        return tpl.queryForObject("SELECT COUNT(id) FROM kfka", Collections.emptyMap(), Long.class);
+        return this.simpleTpl.queryForObject("SELECT COUNT(id) FROM kfka", Collections.emptyList(), Long.class);
     }
 
-    private Map<String, Object> getInsertParams(KfkaMessage value)
+    private List<Object> getInsertParams(KfkaMessage value)
     {
-        final Map<String, Object> retVal = new TreeMap<>();
-        retVal.put("id", value.getId());
-        retVal.put("payload", value.getPayload());
-        retVal.put("type", value.getType());
-        retVal.put("topic", value.getTopic());
-        retVal.put("timestamp", value.getTimestamp());
+        final List<Object> result = new LinkedList<>();
+        result.add(value.getId());
+        result.add(value.getType());
+        result.add(value.getTopic());
+        result.add(value.getTimestamp());
+        result.add(value.getPayload());
 
         for (String propName : value.getQueryableProperties())
         {
-            if (!retVal.containsKey(propName))
-            {
-                retVal.put(propName, KfkaMessage.getPropertyValue(value, propName));
-            }
+            result.add(KfkaMessage.getPropertyValue(value, propName));
         }
 
-        return retVal;
+        return result;
     }
 
     @Override
     public void clear()
     {
-        tpl.update("TRUNCATE TABLE kfka", Collections.emptyMap());
+        simpleTpl.update("TRUNCATE TABLE kfka", Collections.emptyList());
     }
 
     @Override
@@ -267,74 +274,30 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
         params.add(System.currentTimeMillis() - ttl.toMillis());
         addFilterPredicates(predicate, params, sql);
         sql.append(" ORDER BY id ASC");
-        return tpl.getJdbcTemplate().query(sql.toString(), params.toArray(), rs ->
+        return simpleTpl.query(sql.toString(), params, rs ->
         {
             Long firstFound = null;
             int count = 0;
-            while (rs.next() && count++ < offset)
+            try
             {
-                firstFound = rs.getLong(1);
+                while (rs.next() && count++ < offset)
+                {
+                    firstFound = rs.getLong(1);
+                }
+            }
+            catch (SQLException exc)
+            {
+                throw new RuntimeSqlException(exc);
             }
 
             return count >= offset ? Optional.ofNullable(firstFound) : Optional.empty();
         });
     }
 
-    private void close(ResultSet rs)
+    @Override
+    public long clearExpired()
     {
-        if (rs == null)
-        {
-            return;
-        }
-
-        try
-        {
-            rs.close();
-        }
-        catch (SQLException ignore)
-        {
-
-        }
-    }
-
-    private void close(Statement statement)
-    {
-        if (statement == null)
-        {
-            return;
-        }
-
-        try
-        {
-            statement.close();
-        }
-        catch (SQLException ignore)
-        {
-
-        }
-    }
-
-    private void close(Connection connection)
-    {
-        if (connection == null)
-        {
-            return;
-        }
-
-        try
-        {
-            connection.close();
-        }
-        catch (SQLException ignore)
-        {
-
-        }
-    }
-
-    public int clearExpired()
-    {
-        final Map<String, Object> params = Collections.singletonMap("ts", getTtlTs());
-        return tpl.update("DELETE FROM kfka WHERE timestamp < :ts", params);
+        return simpleTpl.update("DELETE FROM kfka WHERE timestamp < ?", Collections.singletonList(System.currentTimeMillis() - ttl.toMillis()));
     }
 }
 
