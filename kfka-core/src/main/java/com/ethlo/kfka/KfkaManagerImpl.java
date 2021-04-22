@@ -21,7 +21,6 @@ package com.ethlo.kfka;
  */
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -65,8 +64,7 @@ public class KfkaManagerImpl implements KfkaManager
         {
             final KfkaMessageListener l = e.getKey();
             final KfkaPredicate p = e.getValue();
-            if ( (p.getType() == null || Objects.equals(msg.getType(), p.getType()))
-                    && (p.getTopic() == null || Objects.equals(msg.getTopic(), p.getTopic())))
+            if (p.matches(msg))
             {
                 l.onMessage(msg);
             }
@@ -94,11 +92,11 @@ public class KfkaManagerImpl implements KfkaManager
         if (offset == null && kfkaPredicate.getMessageId() != null)
         {
             // We have just a message id
-            sendDataSinceId(kfkaPredicate.getMessageId(), l);
+            sendAfter(kfkaPredicate.getMessageId(), kfkaPredicate, l);
         }
         else if (offset != null)
         {
-            sendDataWithOffset(offset, l);
+            sendDataWithOffset(kfkaPredicate, l);
         }
 
         // Add to set of listeners, with the desired predicate
@@ -107,15 +105,23 @@ public class KfkaManagerImpl implements KfkaManager
         return l;
     }
 
-    private void sendDataWithOffset(final int offset, KfkaMessageListener l)
+    private void sendDataWithOffset(final KfkaPredicate predicate, KfkaMessageListener l)
     {
-        final Optional<Long> messageId = kfkaMessageStore.getOffsetMessageId(offset);
-        messageId.ifPresent(id -> sendDataSinceId(id, l));
+        final Optional<Long> messageId = kfkaMessageStore.getOffsetMessageId(predicate.getRelativeOffset(), predicate);
+        if (messageId.isPresent())
+        {
+            messageId.ifPresent(id -> sendAfter(id, predicate, l));
+        }
+        else
+        {
+            // All as we did not find a message that far back
+            sendAfter(0, predicate, l);
+        }
     }
 
-    private void sendDataSinceId(final long messageId, KfkaMessageListener l)
+    private void sendAfter(final long id, final KfkaPredicate predicate, KfkaMessageListener l)
     {
-        kfkaMessageStore.sendAfter(messageId, l);
+        kfkaMessageStore.sendAfter(id, predicate, l);
     }
 
     @Override

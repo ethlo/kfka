@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaMessageListener;
+import com.ethlo.kfka.KfkaPredicate;
 import com.ethlo.kfka.util.AbstractIterator;
 import com.ethlo.kfka.util.CloseableIterator;
 
@@ -95,11 +96,11 @@ public class MemoryKfkaMessageStore implements KfkaMessageStore
     }
 
     @Override
-    public void sendAfter(final long messageId, final KfkaMessageListener l)
+    public void sendAfter(final long messageId, final KfkaPredicate predicate, final KfkaMessageListener l)
     {
         for (Map.Entry<Long, KfkaMessage> e : map.entrySet())
         {
-            if (e.getKey() >= messageId)
+            if (e.getKey() > messageId && predicate.matches(e.getValue()))
             {
                 l.onMessage(e.getValue());
             }
@@ -107,7 +108,7 @@ public class MemoryKfkaMessageStore implements KfkaMessageStore
     }
 
     @Override
-    public Optional<Long> getOffsetMessageId(final int offset)
+    public Optional<Long> getOffsetMessageId(final int offset, final KfkaPredicate predicate)
     {
         final int abs = Math.abs(offset);
         final List<KfkaMessage> values = new ArrayList<>(map.values());
@@ -115,9 +116,14 @@ public class MemoryKfkaMessageStore implements KfkaMessageStore
         final Iterator<KfkaMessage> iter = values.iterator();
         int count = 0;
         Long id = null;
-        while (iter.hasNext() && count++ < abs)
+        while (iter.hasNext() && count < offset)
         {
-            id = iter.next().getId();
+            final KfkaMessage msg = iter.next();
+            if (predicate.matches(msg))
+            {
+                id = iter.next().getId();
+                count++;
+            }
         }
         return Optional.ofNullable(id);
     }

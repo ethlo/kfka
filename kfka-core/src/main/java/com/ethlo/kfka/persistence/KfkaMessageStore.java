@@ -25,6 +25,7 @@ import java.util.Optional;
 
 import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaMessageListener;
+import com.ethlo.kfka.KfkaPredicate;
 import com.ethlo.kfka.util.CloseableIterator;
 
 public interface KfkaMessageStore
@@ -41,7 +42,7 @@ public interface KfkaMessageStore
 
     void clear();
 
-    void sendAfter(long messageId, KfkaMessageListener l);
+    void sendAfter(long messageId, final KfkaPredicate predicate, KfkaMessageListener l);
 
-    Optional<Long> getOffsetMessageId(int offset);
+    Optional<Long> getOffsetMessageId(int offset, final KfkaPredicate predicate);
 }

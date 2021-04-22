@@ -18,7 +18,7 @@
 -- #L%
 ---
 CREATE TABLE `kfka` (
-  `id` bigint NOT NULL,
+  `id` bigint AUTO_INCREMENT NOT NULL,
   `timestamp` bigint NOT NULL,
   `payload` blob NOT NULL,
   `topic` varchar(255) NOT NULL,

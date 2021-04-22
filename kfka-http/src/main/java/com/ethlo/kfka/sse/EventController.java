@@ -69,7 +69,7 @@ public class EventController
         final KfkaPredicate p = new KfkaPredicate().topic(topic);
         if (lastEventId != null)
         {
-            p.messageId(lastEventId + 1);
+            p.lastSeenMessageId(lastEventId + 1);
             p.rewind(Integer.MIN_VALUE + 10);
         }
         else

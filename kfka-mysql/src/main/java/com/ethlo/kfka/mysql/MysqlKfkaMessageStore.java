@@ -20,6 +20,7 @@ package com.ethlo.kfka.mysql;
  * #L%
  */
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -40,11 +41,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.util.StringUtils;
 
 import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaMessageListener;
+import com.ethlo.kfka.KfkaPredicate;
 import com.ethlo.kfka.persistence.KfkaMessageStore;
 import com.ethlo.kfka.util.AbstractIterator;
 import com.ethlo.kfka.util.CloseableIterator;
@@ -75,17 +80,29 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     @Override
     public <T extends KfkaMessage> CloseableIterator<T> tail()
     {
-        final String sql = "SELECT * FROM kfka WHERE timestamp > ? order by id ASC";
+        return lastSeenMessageIterator(0, null);
+    }
+
+    private <T extends KfkaMessage> AbstractIterator<T> lastSeenMessageIterator(final long lastSeenMessageId, final KfkaPredicate predicate)
+    {
+        final List<Object> params = new LinkedList<>();
+        final StringBuilder sql = new StringBuilder("SELECT * FROM kfka WHERE id > ? AND timestamp > ?");
+        addFilterPredicates(predicate, params, sql);
+        sql.append(" ORDER BY id ASC");
 
         Connection conn;
         PreparedStatement stmt;
         ResultSet rs;
-
         try
         {
             conn = dataSource.getConnection();
-            stmt = conn.prepareStatement(sql);
-            stmt.setLong(1, getTtlTs());
+            stmt = conn.prepareStatement(sql.toString());
+            stmt.setLong(1, lastSeenMessageId);
+            stmt.setLong(2, getTtlTs());
+            for (int i = 0; i < params.size(); i++)
+            {
+                stmt.setString(i + 3, params.get(i).toString());
+            }
             rs = stmt.executeQuery();
         }
         catch (SQLException e)
@@ -131,6 +148,28 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
         };
     }
 
+    private void addFilterPredicates(KfkaPredicate predicate, List<Object> params, StringBuilder sql)
+    {
+        Optional.ofNullable(predicate.getType()).ifPresent(p ->
+        {
+            sql.append(" AND ").append("type").append(" = ?");
+            params.add(p);
+        });
+
+        Optional.ofNullable(predicate.getTopic()).ifPresent(p ->
+        {
+            sql.append(" AND ").append("topic").append(" = ?");
+            params.add(p);
+        });
+
+        final Map<String, Serializable> propertyMatches = predicate.getPropertyMatch();
+        for (final Map.Entry<String, Serializable> e : propertyMatches.entrySet())
+        {
+            sql.append(" AND ").append(e.getKey()).append(" = ?");
+            params.add(e.getValue());
+        }
+    }
+
     @Override
     public <T extends KfkaMessage> CloseableIterator<T> head()
     {
@@ -142,7 +181,9 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     {
         final Map<String, ?> params = getInsertParams(value);
         final String sql = getInsertSql(value);
-        tpl.update(sql, params);
+        final KeyHolder keyHolder = new GeneratedKeyHolder();
+        tpl.update(sql, new MapSqlParameterSource(params), keyHolder);
+        value.setId(keyHolder.getKeyAs(Long.class));
     }
 
     private <T extends KfkaMessage> String getInsertSql(T value)
@@ -176,7 +217,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     @Override
     public long size()
     {
-        return 0;
+        return tpl.queryForObject("SELECT COUNT(id) FROM kfka", Collections.emptyMap(), Long.class);
     }
 
     private Map<String, Object> getInsertParams(KfkaMessage value)
@@ -202,46 +243,41 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     @Override
     public void clear()
     {
-        tpl.update("TRUNCATE kfka", Collections.emptyMap());
+        tpl.update("TRUNCATE TABLE kfka", Collections.emptyMap());
     }
 
     @Override
-    public void sendAfter(final long messageId, final KfkaMessageListener l)
+    public void sendAfter(final long messageId, final KfkaPredicate predicate, final KfkaMessageListener l)
     {
-
-    }
-
-    @Override
-    public Optional<Long> getOffsetMessageId(final int offset)
-    {
-        final String sql = "SELECT * FROM kfka WHERE timestamp > ? order by id DESC LIMIT ?,1";
-
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-
-        try
+        try (final AbstractIterator<KfkaMessage> iter = lastSeenMessageIterator(messageId, predicate))
         {
-            conn = dataSource.getConnection();
-            stmt = conn.prepareStatement(sql);
-            stmt.setLong(1, getTtlTs());
-            stmt.setInt(2, offset);
-            rs = stmt.executeQuery();
-            if (rs.next())
+            while (iter.hasNext())
             {
-                return Optional.of(rs.getLong("id"));
+                final KfkaMessage msg = iter.next();
+                l.onMessage(msg);
             }
-            return Optional.empty();
         }
-        catch (SQLException e)
+    }
+
+    @Override
+    public Optional<Long> getOffsetMessageId(final int offset, final KfkaPredicate predicate)
+    {
+        final StringBuilder sql = new StringBuilder("SELECT id FROM kfka WHERE timestamp > ?");
+        final List<Object> params = new LinkedList<>();
+        params.add(System.currentTimeMillis() - ttl.toMillis());
+        addFilterPredicates(predicate, params, sql);
+        sql.append(" ORDER BY id ASC");
+        return tpl.getJdbcTemplate().query(sql.toString(), params.toArray(), rs ->
         {
-            throw new DataAccessResourceFailureException(e.getMessage(), e);
-        } finally
-        {
-            close(rs);
-            close(stmt);
-            close(conn);
-        }
+            Long firstFound = null;
+            int count = 0;
+            while (rs.next() && count++ < offset)
+            {
+                firstFound = rs.getLong(1);
+            }
+
+            return count >= offset ? Optional.ofNullable(firstFound) : Optional.empty();
+        });
     }
 
     private void close(ResultSet rs)

@@ -21,8 +21,14 @@ package com.ethlo.kfka;
  */
 
 import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 @SuppressWarnings("rawtypes")
@@ -38,7 +44,7 @@ public class KfkaPredicate implements Serializable
     private String type;
 
     // Support custom properties
-    private Map<String, Comparable> propertyMatch = new TreeMap<>();
+    private Map<String, Serializable> propertyMatch = new TreeMap<>();
 
     public KfkaPredicate topic(String topic)
     {
@@ -78,22 +84,87 @@ public class KfkaPredicate implements Serializable
         return this;
     }
 
-    public KfkaPredicate messageId(long offsetId)
+    public KfkaPredicate lastSeenMessageId(long offsetId)
     {
         this.messageId = offsetId;
         return this;
     }
 
-    public KfkaPredicate addPropertyMatch(String propertyName, Comparable propertyValue)
+    public KfkaPredicate addPropertyMatch(String propertyName, Serializable propertyValue)
     {
         this.propertyMatch.put(propertyName, propertyValue);
         return this;
     }
 
-    public KfkaPredicate setPropertyMatch(Map<String, Comparable> propertyMatch)
+    public KfkaPredicate setPropertyMatch(Map<String, Serializable> propertyMatch)
     {
         Assert.notNull(propertyMatch, "propertyMatch cannot be null");
         this.propertyMatch = propertyMatch;
         return this;
+    }
+
+    public boolean matches(KfkaMessage msg)
+    {
+        final boolean basicMatch = (getType() == null || Objects.equals(msg.getType(), getType()))
+                && (getTopic() == null || Objects.equals(msg.getTopic(), getTopic()));
+
+        if (propertyMatch.isEmpty())
+        {
+            return basicMatch;
+        }
+
+        final List<Field> fields = getFields(msg.getClass());
+        for (Map.Entry<String, Serializable> e : propertyMatch.entrySet())
+        {
+            final String propertyName = e.getKey();
+            final Serializable filterValue = e.getValue();
+
+            for (Field field : fields)
+            {
+                if (field.getName().equals(propertyName))
+                {
+                    try
+                    {
+                        final Object value = field.get(msg);
+                        if (! Objects.equals(value, filterValue))
+                        {
+                            return false;
+                        }
+                    }
+                    catch (IllegalAccessException exc)
+                    {
+                        throw new RuntimeException(exc);
+                    }
+                }
+            }
+        }
+        return true;
+
+    }
+
+    private static final Map<Class<?>, List<Field>> fieldCache = new ConcurrentHashMap<>();
+
+    private List<Field> getFields(Class<? extends Serializable> type)
+    {
+        return fieldCache.computeIfAbsent(type, this::getAllFields);
+    }
+
+    private List<Field> getAllFields(Class<?> type)
+    {
+        List<Field> fields = new ArrayList<>();
+        for (Class<?> c = type; c != null; c = c.getSuperclass())
+        {
+            fields.addAll(Arrays.asList(c.getDeclaredFields()));
+        }
+        for (Field field : fields)
+        {
+            field.setAccessible(true);
+        }
+        return fields;
+    }
+
+    public Map<String, Serializable> getPropertyMatch()
+    {
+        return propertyMatch;
     }
 }

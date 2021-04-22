@@ -16,7 +16,6 @@ import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
 import com.ethlo.kfka.KfkaConfig;
 import com.ethlo.kfka.KfkaManager;
 import com.ethlo.kfka.KfkaManagerImpl;
-import com.ethlo.kfka.persistence.KfkaCounterStore;
 import com.ethlo.kfka.persistence.KfkaMessageStore;
 
 /*-
@@ -54,7 +53,7 @@ public class TestCfg
     @Bean
     public KfkaMessageStore mapStore(DataSource ds)
     {
-        final Duration ttl = Duration.ofSeconds(300);
+        final Duration ttl = Duration.ofMinutes(30);
         final RowMapper<CustomKfkaMessage> ROW_MAPPER = (rs, rowNum) ->
                 new CustomKfkaMessageBuilder()
                         .userId(rs.getInt("userId"))

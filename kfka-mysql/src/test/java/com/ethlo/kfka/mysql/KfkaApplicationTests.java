@@ -1,4 +1,4 @@
-package com.ethlo.kfka;
+package com.ethlo.kfka.mysql;
 
 /*-
  * #%L
@@ -31,14 +31,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.StopWatch;
 
 import com.acme.CustomKfkaMessage;
 import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
+import com.ethlo.kfka.CollectingListener;
+import com.ethlo.kfka.KfkaManager;
+import com.ethlo.kfka.KfkaMessage;
+import com.ethlo.kfka.KfkaPredicate;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestCfg.class)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class KfkaApplicationTests
 {
     private final Logger logger = LoggerFactory.getLogger(KfkaApplicationTests.class);
@@ -53,7 +59,7 @@ public class KfkaApplicationTests
     }
 
     @Test
-    public void testQueryLast() throws InterruptedException
+    public void testQueryLast()
     {
         kfkaManager.clear();
 
@@ -63,9 +69,7 @@ public class KfkaApplicationTests
         }
 
         final List<KfkaMessage> received = new LinkedList<>();
-
-        kfkaManager.addListener(received::add, new KfkaPredicate().rewind(1));
-
+        kfkaManager.addListener(received::add, new KfkaPredicate().lastSeenMessageId(999));
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage").topic("mytopic").type("mytype").build());
 
         assertThat(received).hasSize(2);
@@ -95,11 +99,13 @@ public class KfkaApplicationTests
     @Test
     public void testCleanOldMessages()
     {
+        final String type = "mytype";
+
         kfkaManager.clear();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").timestamp(1).build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").timestamp(2).build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").timestamp(3).build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").timestamp(4).build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type(type).build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type(type).build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type(type).build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type(type).build());
 
         final List<KfkaMessage> messages = new LinkedList<>();
 
@@ -147,11 +153,13 @@ public class KfkaApplicationTests
     @Test
     public void testQueryWithRelativeOffsetFilteredByTopic()
     {
+        final String type = "my_type";
+
         kfkaManager.clear();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type(type).build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type(type).build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type(type).build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type(type).build());
 
         final List<KfkaMessage> received = new LinkedList<>();
         kfkaManager.addListener(received::add, new KfkaPredicate().topic("bar").rewind(1));
@@ -250,7 +258,7 @@ public class KfkaApplicationTests
     {
         kfkaManager.clear();
 
-        final int count = 10_000;
+        final int count = 100_000;
         final StopWatch sw = new StopWatch();
         sw.start("Insert1");
         for (int i = 1; i <= count; i++)
