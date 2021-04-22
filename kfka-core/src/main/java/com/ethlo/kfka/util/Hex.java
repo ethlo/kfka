@@ -4,14 +4,14 @@ package com.ethlo.kfka.util;
  * #%L
  * kfka-core
  * %%
- * Copyright (C) 2017 - 2018 Morten Haraldsen (ethlo)
+ * Copyright (C) 2017 - 2021 Morten Haraldsen (ethlo)
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,11 +20,23 @@ package com.ethlo.kfka.util;
  * #L%
  */
 
-import java.io.Closeable;
-import java.util.Iterator;
-
-public interface CloseableIterator<T> extends Iterator<T>, Closeable
+public class Hex
 {
-    @Override
-    void close();
+    private Hex()
+    {
+    }
+
+    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+
+    public static String bytesToHex(byte[] bytes)
+    {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++)
+        {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
 }

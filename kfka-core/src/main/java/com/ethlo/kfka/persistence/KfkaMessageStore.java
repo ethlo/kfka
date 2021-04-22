@@ -1,10 +1,10 @@
-package com.ethlo.kfka.util;
+package com.ethlo.kfka.persistence;
 
 /*-
  * #%L
- * kfka-core
+ * kfka
  * %%
- * Copyright (C) 2017 - 2018 Morten Haraldsen (ethlo)
+ * Copyright (C) 2017 Morten Haraldsen (ethlo)
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,23 @@ package com.ethlo.kfka.util;
  * #L%
  */
 
-import java.io.Closeable;
-import java.util.Iterator;
+import java.util.Optional;
 
-public interface CloseableIterator<T> extends Iterator<T>, Closeable
+import com.ethlo.kfka.KfkaMessage;
+import com.ethlo.kfka.KfkaMessageListener;
+import com.ethlo.kfka.KfkaPredicate;
+
+public interface KfkaMessageStore
 {
-    @Override
-    void close();
+    <T extends KfkaMessage> void add(T message);
+
+    long size();
+
+    void clear();
+
+    void sendAfter(long messageId, final KfkaPredicate predicate, KfkaMessageListener l);
+
+    Optional<Long> getOffsetMessageId(int offset, final KfkaPredicate predicate);
+
+    void clearExpired();
 }

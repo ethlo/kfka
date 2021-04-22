@@ -1,10 +1,10 @@
-package com.ethlo.kfka.util;
+package com.ethlo.kfka.mysql;
 
 /*-
  * #%L
- * kfka-core
+ * kfka-mysql
  * %%
- * Copyright (C) 2017 - 2018 Morten Haraldsen (ethlo)
+ * Copyright (C) 2017 Morten Haraldsen (ethlo)
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,13 @@ package com.ethlo.kfka.util;
  * #L%
  */
 
-import java.io.Closeable;
-import java.util.Iterator;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
 
-public interface CloseableIterator<T> extends Iterator<T>, Closeable
+@RunWith(SpringRunner.class)
+@SpringBootTest(classes = TestCfg.class)
+public class MysqlMessageStoreTest
 {
-    @Override
-    void close();
+
 }
