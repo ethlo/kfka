@@ -45,9 +45,9 @@ import com.ethlo.kfka.KfkaPredicate;
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestCfg.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-public class KfkaApplicationTests
+public class KfkaTest
 {
-    private final Logger logger = LoggerFactory.getLogger(KfkaApplicationTests.class);
+    private final Logger logger = LoggerFactory.getLogger(KfkaTest.class);
 
     @Autowired
     private KfkaManager kfkaManager;
@@ -127,28 +127,6 @@ public class KfkaApplicationTests
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
         assertThat(kfkaManager.size()).isEqualTo(2);
     }
-
-    /*
-    @Test
-    public void testFindFirst()
-    {
-        kfkaManager.clear();
-        final long a = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
-        final long first = kfkaManager.findfirst();
-        assertThat(first).isEqualTo(a);
-    }
-
-    @Test
-    public void testFindLatest()
-    {
-        kfkaManager.clear();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
-        final long b = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
-        final long latest = kfkaManager.findLatest();
-        assertThat(latest).isEqualTo(b);
-    }
-    */
 
     @Test
     public void testQueryWithRelativeOffsetFilteredByTopic()

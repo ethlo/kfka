@@ -35,7 +35,6 @@ package com.ethlo.kfka.util;
  */
 
 import java.io.Closeable;
-import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 /**
@@ -47,6 +46,7 @@ public abstract class AbstractIterator<T> implements CloseableIterator<T>, Close
 {
     private State state = State.NOT_READY;
     private T next;
+
     protected AbstractIterator()
     {
     }

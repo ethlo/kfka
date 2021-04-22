@@ -9,9 +9,9 @@ package com.ethlo.kfka.mysql;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,6 +27,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 
 import javax.sql.DataSource;
@@ -63,9 +64,15 @@ public class SimpleJdbcTemplate
 
     public <T> T query(String sql, List<Object> params, Function<ResultSet, T> callback)
     {
-        try (final Connection conn = dataSource.getConnection(); final PreparedStatement stat = setParams(conn.prepareStatement(sql), params))
+        try (final Connection conn = dataSource.getConnection(); final PreparedStatement stat = setParams(conn.prepareStatement(sql,
+                java.sql.ResultSet.TYPE_FORWARD_ONLY,
+                java.sql.ResultSet.CONCUR_READ_ONLY), params))
         {
-            final List<T> result = new LinkedList<>();
+            if (conn.getMetaData().getDatabaseProductName().toLowerCase().contains("mysql"))
+            {
+                stat.setFetchSize(Integer.MIN_VALUE);
+            }
+
             try (final ResultSet rs = stat.executeQuery())
             {
                 return callback.apply(rs);
@@ -137,6 +144,10 @@ public class SimpleJdbcTemplate
         try (final Connection conn = dataSource.getConnection(); final PreparedStatement stat = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS))
         {
             final int updated = setParams(stat, params).executeUpdate();
+            if (updated != 1)
+            {
+                throw new RuntimeSqlException(new SQLException("Insert affected " + updated + " rows"));
+            }
             final ResultSet generatedKeysRs = stat.getGeneratedKeys();
             if (generatedKeysRs.next())
             {

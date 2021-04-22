@@ -20,23 +20,15 @@ package com.ethlo.kfka.persistence;
  * #L%
  */
 
-import java.util.Collection;
 import java.util.Optional;
 
 import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaMessageListener;
 import com.ethlo.kfka.KfkaPredicate;
-import com.ethlo.kfka.util.CloseableIterator;
 
 public interface KfkaMessageStore
 {
     <T extends KfkaMessage> void add(T message);
-
-    <T extends KfkaMessage> CloseableIterator<T> tail();
-
-    <T extends KfkaMessage> CloseableIterator<T> head();
-
-//    <T extends KfkaMessage> void addAll(Collection<T> data);
 
     long size();
 
@@ -46,5 +38,5 @@ public interface KfkaMessageStore
 
     Optional<Long> getOffsetMessageId(int offset, final KfkaPredicate predicate);
 
-    long clearExpired();
+    void clearExpired();
 }

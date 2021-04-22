@@ -25,21 +25,15 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.ethlo.kfka.persistence.KfkaMessageStore;
 
 public class KfkaManagerImpl implements KfkaManager
 {
-    private static final Logger logger = LoggerFactory.getLogger(KfkaManagerImpl.class);
-    private final KfkaConfig kfkaCfg;
     private final KfkaMessageStore kfkaMessageStore;
     private final ConcurrentMap<KfkaMessageListener, KfkaPredicate> msgListeners = new ConcurrentHashMap<>();
 
-    public KfkaManagerImpl(KfkaMessageStore kfkaMessageStore, KfkaConfig kfkaCfg)
+    public KfkaManagerImpl(KfkaMessageStore kfkaMessageStore)
     {
-        this.kfkaCfg = kfkaCfg;
         this.kfkaMessageStore = kfkaMessageStore;
     }
 

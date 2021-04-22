@@ -1,7 +1,6 @@
 package com.ethlo.kfka.mysql;
 
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 
 import javax.sql.DataSource;
 
@@ -12,7 +11,6 @@ import org.springframework.context.annotation.Configuration;
 
 import com.acme.CustomKfkaMessage;
 import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
-import com.ethlo.kfka.KfkaConfig;
 import com.ethlo.kfka.KfkaManager;
 import com.ethlo.kfka.KfkaManagerImpl;
 import com.ethlo.kfka.persistence.KfkaMessageStore;
@@ -44,7 +42,7 @@ public class TestCfg
     @Bean
     public static Flyway flyway(DataSource ds)
     {
-        final Flyway flyway = Flyway.configure().locations("db/testmigrations").dataSource(ds).load();
+        final Flyway flyway = Flyway.configure().locations("db/test_migrations").dataSource(ds).load();
         flyway.migrate();
         return flyway;
     }
@@ -63,17 +61,12 @@ public class TestCfg
                         .id(rs.getLong("id"))
                         .build();
 
-        return new MysqlKfkaMessageStore(ds, ROW_MAPPER, ttl);
+        return new MysqlKfkaMessageStore<>(ds, ROW_MAPPER, ttl);
     }
 
     @Bean
     public KfkaManager kfkaManager(KfkaMessageStore messageStore)
     {
-        return new KfkaManagerImpl(messageStore,
-                new KfkaConfig()
-                        .ttl(Duration.of(300, ChronoUnit.SECONDS))
-                        .name("kfka")
-                        .batchSize(250)
-        );
+        return new KfkaManagerImpl(messageStore);
     }
 }

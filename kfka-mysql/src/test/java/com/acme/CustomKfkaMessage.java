@@ -22,18 +22,13 @@ package com.acme;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 
 import com.ethlo.kfka.KfkaMessage;
 
 public class CustomKfkaMessage extends KfkaMessage
 {
-    private static final long serialVersionUID = 443035395722534117L;
     private Integer userId;
-
-    private CustomKfkaMessage()
-    {
-        super(null);
-    }
 
     public CustomKfkaMessage(CustomKfkaMessageBuilder builder)
     {
@@ -55,7 +50,7 @@ public class CustomKfkaMessage extends KfkaMessage
     @Override
     public Collection<String> getQueryableProperties()
     {
-        return Arrays.asList("userId");
+        return Collections.singletonList("userId");
     }
 
     public static class CustomKfkaMessageBuilder extends Builder

@@ -22,20 +22,15 @@ package com.ethlo.kfka;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
 
+import com.ethlo.kfka.util.ReflectionUtil;
 
-@SuppressWarnings("rawtypes")
 public class KfkaPredicate implements Serializable
 {
-    private static final long serialVersionUID = -8869419733948277543L;
-
     private Integer relativeOffset;
     private Long messageId;
 
@@ -44,7 +39,7 @@ public class KfkaPredicate implements Serializable
     private String type;
 
     // Support custom properties
-    private Map<String, Serializable> propertyMatch = new TreeMap<>();
+    private final Map<String, Serializable> propertyMatch = new TreeMap<>();
 
     public KfkaPredicate topic(String topic)
     {
@@ -96,13 +91,6 @@ public class KfkaPredicate implements Serializable
         return this;
     }
 
-    public KfkaPredicate setPropertyMatch(Map<String, Serializable> propertyMatch)
-    {
-        Assert.notNull(propertyMatch, "propertyMatch cannot be null");
-        this.propertyMatch = propertyMatch;
-        return this;
-    }
-
     public boolean matches(KfkaMessage msg)
     {
         final boolean basicMatch = (getType() == null || Objects.equals(msg.getType(), getType()))
@@ -113,7 +101,7 @@ public class KfkaPredicate implements Serializable
             return basicMatch;
         }
 
-        final List<Field> fields = getFields(msg.getClass());
+        final Collection<Field> fields = ReflectionUtil.getFields(msg.getClass()).values();
         for (Map.Entry<String, Serializable> e : propertyMatch.entrySet())
         {
             final String propertyName = e.getKey();
@@ -126,7 +114,7 @@ public class KfkaPredicate implements Serializable
                     try
                     {
                         final Object value = field.get(msg);
-                        if (! Objects.equals(value, filterValue))
+                        if (!Objects.equals(value, filterValue))
                         {
                             return false;
                         }
@@ -140,27 +128,6 @@ public class KfkaPredicate implements Serializable
         }
         return true;
 
-    }
-
-    private static final Map<Class<?>, List<Field>> fieldCache = new ConcurrentHashMap<>();
-
-    private List<Field> getFields(Class<? extends Serializable> type)
-    {
-        return fieldCache.computeIfAbsent(type, this::getAllFields);
-    }
-
-    private List<Field> getAllFields(Class<?> type)
-    {
-        List<Field> fields = new ArrayList<>();
-        for (Class<?> c = type; c != null; c = c.getSuperclass())
-        {
-            fields.addAll(Arrays.asList(c.getDeclaredFields()));
-        }
-        for (Field field : fields)
-        {
-            field.setAccessible(true);
-        }
-        return fields;
     }
 
     public Map<String, Serializable> getPropertyMatch()

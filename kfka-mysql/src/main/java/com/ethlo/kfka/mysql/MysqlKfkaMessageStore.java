@@ -25,7 +25,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,6 +37,8 @@ import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
+import com.ethlo.kfka.util.ReflectionUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,6 @@ import com.ethlo.kfka.KfkaMessageListener;
 import com.ethlo.kfka.KfkaPredicate;
 import com.ethlo.kfka.persistence.KfkaMessageStore;
 import com.ethlo.kfka.util.AbstractIterator;
-import com.ethlo.kfka.util.CloseableIterator;
 
 public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessageStore
 {
@@ -69,12 +69,6 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     private long getTtlTs()
     {
         return System.currentTimeMillis() - ttl.toMillis();
-    }
-
-    @Override
-    public <T extends KfkaMessage> CloseableIterator<T> tail()
-    {
-        return lastSeenMessageIterator(0, null);
     }
 
     private <T extends KfkaMessage> AbstractIterator<T> lastSeenMessageIterator(final long lastSeenMessageId, final KfkaPredicate predicate)
@@ -165,12 +159,6 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     }
 
     @Override
-    public <T extends KfkaMessage> CloseableIterator<T> head()
-    {
-        return null;
-    }
-
-    @Override
     public <T extends KfkaMessage> void add(T value)
     {
         final List<Object> params = getInsertParams(value);
@@ -204,26 +192,6 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
         return collectionToDelimitedString(tmp, delim);
     }
 
-    /*
-    @SuppressWarnings("unchecked")
-    @Override
-    public <T extends KfkaMessage> void addAll(Collection<T> data)
-    {
-        if (data.isEmpty())
-        {
-            return;
-        }
-
-        final T first = data.iterator().next();
-        final String sql = getInsertSql(first);
-        final List<Map<String, ?>> parameters = new LinkedList<>();
-        for (T entry : data)
-        {
-            parameters.add(getInsertParams(entry));
-        }
-        tpl.batchUpdate(sql, parameters.toArray(new Map[0]));
-    }
-*/
     @Override
     public long size()
     {
@@ -241,7 +209,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
 
         for (String propName : value.getQueryableProperties())
         {
-            result.add(KfkaMessage.getPropertyValue(value, propName));
+            result.add(ReflectionUtil.getPropertyValue(value, propName));
         }
 
         return result;
@@ -295,9 +263,9 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     }
 
     @Override
-    public long clearExpired()
+    public void clearExpired()
     {
-        return simpleTpl.update("DELETE FROM kfka WHERE timestamp < ?", Collections.singletonList(System.currentTimeMillis() - ttl.toMillis()));
+        simpleTpl.update("DELETE FROM kfka WHERE timestamp < ?", Collections.singletonList(System.currentTimeMillis() - ttl.toMillis()));
     }
 }
 

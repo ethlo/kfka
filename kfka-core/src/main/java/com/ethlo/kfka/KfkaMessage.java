@@ -20,19 +20,15 @@ package com.ethlo.kfka;
  * #L%
  */
 
+import com.ethlo.kfka.util.Hex;
+
 import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 
-@SuppressWarnings("rawtypes")
 public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessage>
 {
-    private static final long serialVersionUID = 3209315651061823360L;
-
     private String topic;
     private long timestamp;
     private byte[] payload;
@@ -56,44 +52,6 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         this.payload = builder.payload;
         this.type = builder.type;
         this.id = builder.id;
-    }
-
-    public static Object getPropertyValue(Object object, String propertyName)
-    {
-        Field field;
-        try
-        {
-            field = object.getClass().getDeclaredField(propertyName);
-            field.setAccessible(true);
-            return field.get(object);
-        }
-        catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException exc)
-        {
-            return null;
-        }
-    }
-
-    public static Map<String, Comparable> getPropertyValues(Object object)
-    {
-        try
-        {
-            final Field[] fields = object.getClass().getDeclaredFields();
-            final Map<String, Comparable> queryableFields = new TreeMap<>();
-            for (Field field : fields)
-            {
-                if (Comparable.class.isAssignableFrom(field.getType()))
-                {
-                    field.setAccessible(true);
-                    final Object o = field.get(object);
-                    queryableFields.put(field.getName(), Comparable.class.cast(o));
-                }
-            }
-            return queryableFields;
-        }
-        catch (IllegalAccessException exc)
-        {
-            throw new AssertionError(exc);
-        }
     }
 
     public String getTopic()
@@ -128,19 +86,18 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         return "KfkaMessage [id=" + id
                 + ", topic=" + topic
                 + ", timestamp=" + timestamp
-                + ", payload=" + payload
+                + ", payload=" + Hex.bytesToHex(payload)
                 + ", type=" + type;
-    }
-
-    protected KfkaMessage id(long id)
-    {
-        this.id = id;
-        return this;
     }
 
     public Long getId()
     {
         return this.id;
+    }
+
+    public void setId(long newId)
+    {
+        this.id = newId;
     }
 
     public abstract Collection<String> getQueryableProperties();
@@ -167,11 +124,6 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     protected void timestamp(Long timestamp)
     {
         this.timestamp = timestamp;
-    }
-
-    public void setId(long newId)
-    {
-        this.id = newId;
     }
 
     public abstract static class Builder

@@ -32,7 +32,7 @@ public class PojoTest
     @Test
     public void testHashcode()
     {
-        new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build().hashCode();
+        assertThat(new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build().hashCode()).isEqualTo(123);
     }
 
     @Test
@@ -49,6 +49,6 @@ public class PojoTest
     @Test
     public void testToString()
     {
-        new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build().toString();
+        assertThat(new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build().toString()).isNotNull();
     }
 }
