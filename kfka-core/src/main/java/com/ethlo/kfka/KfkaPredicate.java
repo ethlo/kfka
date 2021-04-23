@@ -70,12 +70,12 @@ public class KfkaPredicate implements Serializable
 
     public Integer getRelativeOffset()
     {
-        return this.relativeOffset;
+        return relativeOffset;
     }
 
     public KfkaPredicate rewind(Integer relativeOffset)
     {
-        this.relativeOffset = relativeOffset;
+        this.relativeOffset = relativeOffset != null ? Math.abs(relativeOffset) : null;
         return this;
     }
 

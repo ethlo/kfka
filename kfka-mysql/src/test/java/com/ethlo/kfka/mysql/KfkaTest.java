@@ -97,6 +97,46 @@ public class KfkaTest
     }
 
     @Test
+    public void testOnlyNewMessages()
+    {
+        kfkaManager.clear();
+
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage2").topic("bar").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage3").topic("baz").type("mytype").build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage4").topic("bar").type("mytype").build());
+
+        final List<KfkaMessage> received = new LinkedList<>();
+        final KfkaPredicate predicate = new KfkaPredicate().topic("bar");
+        this.kfkaManager.addListener(received::add, predicate);
+
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage5").topic("bar").type("mytype").build());
+
+        assertThat(received).hasSize(1);
+        assertThat(received.get(0).getId()).isEqualTo(5);
+    }
+
+    @Test
+    public void testOnlyNewMessagesWhenManyOld()
+    {
+        kfkaManager.clear();
+
+        for (int i = 0; i < 10_000; i++)
+        {
+            kfkaManager.add(new CustomKfkaMessageBuilder().payload("oldMessage" + (i + 1)).topic("foo").type("mytype").build());
+        }
+
+        final KfkaPredicate predicate = new KfkaPredicate().topic("foo").rewind(-10);
+        final List<KfkaMessage> received = new LinkedList<>();
+        this.kfkaManager.addListener(received::add, predicate);
+
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("Message").topic("foo").type("mytype").build());
+
+        assertThat(received).hasSize(11);
+        assertThat(received.get(0).getId()).isEqualTo(9_991);
+    }
+
+    @Test
     public void testCleanOldMessages()
     {
         final String type = "mytype";

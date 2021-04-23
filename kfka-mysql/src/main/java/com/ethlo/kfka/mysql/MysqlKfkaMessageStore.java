@@ -241,14 +241,14 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
         final List<Object> params = new LinkedList<>();
         params.add(System.currentTimeMillis() - ttl.toMillis());
         addFilterPredicates(predicate, params, sql);
-        sql.append(" ORDER BY id ASC");
+        sql.append(" ORDER BY id DESC");
         return simpleTpl.query(sql.toString(), params, rs ->
         {
             Long firstFound = null;
             int count = 0;
             try
             {
-                while (rs.next() && count++ < offset)
+                while (rs.next() && count++ <= offset)
                 {
                     firstFound = rs.getLong(1);
                 }
