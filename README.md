@@ -13,22 +13,22 @@ Kfka currently supports MySQL as a back-end, and has zero dependencies which mak
 # Usage
 ```java
 kfkaManager.addListener((msg)->
-	 {
-         // TODO: Handle message
-     },
-     new KfkaPredicate()
-    .topic("bar")
-    .rewind(100) // Rewind (up to) 100 messages
+{
+  // TODO: Handle message
+},
+new KfkaPredicate()
+  .topic("my_topic")
+  .rewind(100) // Rewind (up to) 100 messages
 ```
 
 Use as a backend for SSE/Websockets messages
 ```java
 kfkaManager.addListener((msg)->
-	 {
-         // TODO: Handle message
-     },
-     new KfkaPredicate()
-    .topic("bar")
-    .lastSeenMessageId(45_610) // Next message will be 45,611
-    .addPropertyMatch("userId", 123);
+{
+  // TODO: Handle message
+},
+new KfkaPredicate()
+  .topic("chat")
+  .lastSeenMessageId(45_610) // Next message will be 45,611
+  .addPropertyMatch("userId", 123); // Filtering on custom property
 ```
