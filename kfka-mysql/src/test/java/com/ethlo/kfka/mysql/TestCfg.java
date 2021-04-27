@@ -59,7 +59,7 @@ public class TestCfg
                         .topic(rs.getString("topic"))
                         .type(rs.getString("type"))
                         .id(rs.getLong("id"))
-                        .messageId(rs.getString("ext_id"))
+                        .messageId(rs.getString("message_id"))
                         .build();
 
         return new MysqlKfkaMessageStore<>(ds, ROW_MAPPER, ttl);

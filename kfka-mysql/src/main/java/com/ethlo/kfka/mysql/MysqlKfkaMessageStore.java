@@ -74,7 +74,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
 
     private <T extends KfkaMessage> AbstractIterator<T> fromMessageIdIterator(final String lastSeenMessageId, final KfkaPredicate predicate)
     {
-        final Long internalId = simpleTpl.queryForObject("SELECT id FROM kfka WHERE ext_id = ?", Collections.singletonList(lastSeenMessageId), Long.class);
+        final Long internalId = simpleTpl.queryForObject("SELECT id FROM kfka WHERE message_id = ?", Collections.singletonList(lastSeenMessageId), Long.class);
         if (internalId != null)
         {
             return fromMessageIdIterator(internalId, predicate);
@@ -194,7 +194,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     {
         final Collection<String> extraProps = value.getQueryableProperties();
         final String extraColsStr = (extraProps.isEmpty() ? "" : (", " + collectionToDelimitedString(extraProps, ", ")));
-        return "INSERT INTO kfka (id, ext_id, type, topic, timestamp, payload" + extraColsStr + ")"
+        return "INSERT INTO kfka (id, message_id, type, topic, timestamp, payload" + extraColsStr + ")"
                 + " VALUES(" + repeat(6 + extraProps.size(), "?", ", ") + ")";
     }
 
@@ -266,7 +266,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     @Override
     public Optional<String> getMessageIdForRewind(final int offset, final KfkaPredicate predicate)
     {
-        final StringBuilder sql = new StringBuilder("SELECT ext_id FROM kfka WHERE timestamp > ?");
+        final StringBuilder sql = new StringBuilder("SELECT message_id FROM kfka WHERE timestamp > ?");
         final List<Object> params = new LinkedList<>();
         params.add(System.currentTimeMillis() - ttl.toMillis());
         addFilterPredicates(predicate, params, sql);

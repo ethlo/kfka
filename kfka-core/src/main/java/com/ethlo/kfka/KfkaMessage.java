@@ -30,6 +30,7 @@ import com.ethlo.kfka.util.RandomUtil;
 
 public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessage>
 {
+    public static final int MESSAGE_ID_LENGTH = 12;
     private String topic;
     private long timestamp;
     private byte[] payload;
@@ -54,7 +55,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         this.payload = builder.payload;
         this.type = builder.type;
         this.id = builder.id;
-        this.messageId = builder.messageId != null ? builder.messageId : RandomUtil.generateAsciiString(10);
+        this.messageId = builder.messageId;
     }
 
     public String getTopic()

@@ -19,7 +19,7 @@
 ---
 CREATE TABLE `kfka` (
   `id` bigint AUTO_INCREMENT NOT NULL,
-  `ext_id` char(10) NOT NULL,
+  `message_id` char(12) NOT NULL,
   `timestamp` bigint NOT NULL,
   `payload` blob NOT NULL,
   `topic` varchar(255) NOT NULL,

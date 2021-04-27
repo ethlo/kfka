@@ -20,6 +20,8 @@ package com.ethlo.kfka;
  * #L%
  */
 
+import static com.ethlo.kfka.KfkaMessage.MESSAGE_ID_LENGTH;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +52,11 @@ public class KfkaManagerImpl implements KfkaManager
         if (msg.getTimestamp() == null)
         {
             msg.timestamp(System.currentTimeMillis());
+        }
+
+        if (msg.getMessageId() == null)
+        {
+            msg.setMessageId(RandomUtil.generateAsciiString(MESSAGE_ID_LENGTH));
         }
 
         kfkaMessageStore.add(msg);
