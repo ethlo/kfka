@@ -20,12 +20,13 @@ package com.ethlo.kfka;
  * #L%
  */
 
-import com.ethlo.kfka.util.Hex;
-
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Objects;
+
+import com.ethlo.kfka.util.Hex;
+import com.ethlo.kfka.util.RandomUtil;
 
 public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessage>
 {
@@ -34,6 +35,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     private byte[] payload;
     private String type;
     private Long id;
+    private String messageId;
 
     protected KfkaMessage(Builder builder)
     {
@@ -52,6 +54,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         this.payload = builder.payload;
         this.type = builder.type;
         this.id = builder.id;
+        this.messageId = builder.messageId != null ? builder.messageId : RandomUtil.generateAsciiString(10);
     }
 
     public String getTopic()
@@ -84,6 +87,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     public String toString()
     {
         return "KfkaMessage [id=" + id
+                + ", messageId=" + messageId
                 + ", topic=" + topic
                 + ", timestamp=" + timestamp
                 + ", payload=" + Hex.bytesToHex(payload)
@@ -126,6 +130,16 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         this.timestamp = timestamp;
     }
 
+    public String getMessageId()
+    {
+        return messageId;
+    }
+
+    public void setMessageId(final String messageId)
+    {
+        this.messageId = messageId;
+    }
+
     public abstract static class Builder
     {
         private String topic;
@@ -133,6 +147,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         private byte[] payload;
         private String type;
         private Long id;
+        private String messageId;
 
         public Builder topic(String topic)
         {
@@ -167,6 +182,12 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         public Builder id(Long id)
         {
             this.id = id;
+            return this;
+        }
+
+        public Builder messageId(final String messageId)
+        {
+            this.messageId = messageId;
             return this;
         }
 

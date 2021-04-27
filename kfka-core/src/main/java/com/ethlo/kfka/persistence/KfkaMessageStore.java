@@ -28,15 +28,19 @@ import com.ethlo.kfka.KfkaPredicate;
 
 public interface KfkaMessageStore
 {
-    <T extends KfkaMessage> void add(T message);
+    <T extends KfkaMessage> T add(T message);
 
     long size();
 
     void clear();
 
-    void sendAfter(long messageId, final KfkaPredicate predicate, KfkaMessageListener l);
+    void sendAfter(String messageId, final KfkaPredicate predicate, KfkaMessageListener l);
 
-    Optional<Long> getOffsetMessageId(int offset, final KfkaPredicate predicate);
+    Optional<String> getMessageIdForRewind(int offset, final KfkaPredicate predicate);
 
     void clearExpired();
+
+    void sendAll(KfkaPredicate predicate, KfkaMessageListener l);
+
+    void sendIncluding(String messageId, KfkaPredicate predicate, KfkaMessageListener l);
 }

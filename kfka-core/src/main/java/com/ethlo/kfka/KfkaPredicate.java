@@ -32,7 +32,7 @@ import com.ethlo.kfka.util.ReflectionUtil;
 public class KfkaPredicate implements Serializable
 {
     private Integer relativeOffset;
-    private Long messageId;
+    private String messageId;
 
     // Filtering
     private String topic;
@@ -63,12 +63,12 @@ public class KfkaPredicate implements Serializable
         return this.type;
     }
 
-    public Long getMessageId()
+    public String getMessageId()
     {
         return this.messageId;
     }
 
-    public Integer getRelativeOffset()
+    public Integer getRewind()
     {
         return relativeOffset;
     }
@@ -79,9 +79,9 @@ public class KfkaPredicate implements Serializable
         return this;
     }
 
-    public KfkaPredicate lastSeenMessageId(long offsetId)
+    public KfkaPredicate lastSeenMessageId(String messageId)
     {
-        this.messageId = offsetId;
+        this.messageId = messageId;
         return this;
     }
 

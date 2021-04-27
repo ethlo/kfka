@@ -22,7 +22,7 @@ package com.ethlo.kfka;
 
 public interface KfkaManager
 {
-    long add(KfkaMessage msg);
+    KfkaMessage add(KfkaMessage msg);
 
     long size();
 

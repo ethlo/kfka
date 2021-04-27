@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import com.ethlo.kfka.persistence.KfkaMessageStore;
+import com.ethlo.kfka.util.RandomUtil;
 
 public class KfkaManagerImpl implements KfkaManager
 {
@@ -44,7 +45,7 @@ public class KfkaManagerImpl implements KfkaManager
     }
 
     @Override
-    public long add(KfkaMessage msg)
+    public KfkaMessage add(KfkaMessage msg)
     {
         if (msg.getTimestamp() == null)
         {
@@ -64,7 +65,7 @@ public class KfkaManagerImpl implements KfkaManager
             }
         }
 
-        return msg.getId();
+        return msg;
     }
 
     @Override
@@ -81,16 +82,15 @@ public class KfkaManagerImpl implements KfkaManager
 
     public KfkaMessageListener addListener(KfkaMessageListener l, KfkaPredicate kfkaPredicate)
     {
-        // Relative offset
-        final Integer offset = kfkaPredicate.getRelativeOffset();
-        if (offset == null && kfkaPredicate.getMessageId() != null)
+        if (kfkaPredicate.getMessageId() != null)
         {
-            // We have just a message id
-            sendAfter(kfkaPredicate.getMessageId(), kfkaPredicate, l);
+            // We have a message id
+            kfkaMessageStore.sendAfter(kfkaPredicate.getMessageId(), kfkaPredicate, l);
         }
-        else if (offset != null)
+        else if (kfkaPredicate.getRewind() != null)
         {
-            sendDataWithOffset(kfkaPredicate, l);
+            // We have rewind
+            sendDataWithRewind(kfkaPredicate, l);
         }
 
         // Add to set of listeners, with the desired predicate
@@ -99,23 +99,18 @@ public class KfkaManagerImpl implements KfkaManager
         return l;
     }
 
-    private void sendDataWithOffset(final KfkaPredicate predicate, KfkaMessageListener l)
+    private void sendDataWithRewind(final KfkaPredicate predicate, KfkaMessageListener l)
     {
-        final Optional<Long> messageId = kfkaMessageStore.getOffsetMessageId(predicate.getRelativeOffset(), predicate);
+        final Optional<String> messageId = kfkaMessageStore.getMessageIdForRewind(predicate.getRewind(), predicate);
         if (messageId.isPresent())
         {
-            messageId.ifPresent(id -> sendAfter(id, predicate, l));
+            messageId.ifPresent(id -> kfkaMessageStore.sendIncluding(id, predicate, l));
         }
         else
         {
-            // All as we did not find a message that far back
-            sendAfter(0, predicate, l);
+            // All as we did not find a message
+            kfkaMessageStore.sendAll(predicate, l);
         }
-    }
-
-    private void sendAfter(final long id, final KfkaPredicate predicate, KfkaMessageListener l)
-    {
-        kfkaMessageStore.sendAfter(id, predicate, l);
     }
 
     @Override

@@ -63,13 +63,15 @@ public class KfkaTest
     {
         kfkaManager.clear();
 
+        final List<String> messageIds = new LinkedList<>();
         for (int i = 0; i < 1_000; i++)
         {
-            kfkaManager.add(new CustomKfkaMessageBuilder().payload("" + i).topic("mytopic").type("mytype").build());
+            final KfkaMessage msg = kfkaManager.add(new CustomKfkaMessageBuilder().payload("" + i).topic("mytopic").type("mytype").build());
+            messageIds.add(msg.getMessageId());
         }
 
         final List<KfkaMessage> received = new LinkedList<>();
-        kfkaManager.addListener(received::add, new KfkaPredicate().lastSeenMessageId(999));
+        kfkaManager.addListener(received::add, new KfkaPredicate().lastSeenMessageId(messageIds.get(messageIds.size() - 2)));
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage").topic("mytopic").type("mytype").build());
 
         assertThat(received).hasSize(2);
@@ -126,7 +128,7 @@ public class KfkaTest
             kfkaManager.add(new CustomKfkaMessageBuilder().payload("oldMessage" + (i + 1)).topic("foo").type("mytype").build());
         }
 
-        final KfkaPredicate predicate = new KfkaPredicate().topic("foo").rewind(-10);
+        final KfkaPredicate predicate = new KfkaPredicate().topic("foo").rewind(10);
         final List<KfkaMessage> received = new LinkedList<>();
         this.kfkaManager.addListener(received::add, predicate);
 
@@ -239,22 +241,20 @@ public class KfkaTest
     public void testLastMessageId()
     {
         kfkaManager.clear();
-        final CustomKfkaMessage msg1 = new CustomKfkaMessageBuilder().payload("myMessage1")
+        final KfkaMessage msg1 = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
                 .topic("foo")
                 .payload("msg1")
                 .type("mytype")
-                .build();
+                .build());
 
-        final CustomKfkaMessage msg2 = new CustomKfkaMessageBuilder().payload("myMessage1")
+        final KfkaMessage msg2 = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
                 .topic("foo")
                 .type("mytype")
                 .payload("msg2")
-                .build();
+                .build());
 
-        kfkaManager.add(msg1);
-        kfkaManager.add(msg2);
         final CollectingListener l = new CollectingListener();
-        kfkaManager.addListener(l, new KfkaPredicate().lastSeenMessageId(msg1.getId()));
+        kfkaManager.addListener(l, new KfkaPredicate().lastSeenMessageId(msg1.getMessageId()));
         assertThat(l.getReceived()).hasSize(1);
         assertThat(l.getReceived()).contains(msg2);
     }
@@ -267,7 +267,7 @@ public class KfkaTest
                 .topic("foo")
                 .type("mytype").build());
         final CollectingListener l = new CollectingListener();
-        kfkaManager.addListener(l, new KfkaPredicate().lastSeenMessageId(0));
+        kfkaManager.addListener(l, new KfkaPredicate().rewind(1));
         assertThat(l.getReceived()).hasSize(1);
     }
 
@@ -281,7 +281,7 @@ public class KfkaTest
                 .type("mytype").build());
         final CollectingListener l = new CollectingListener();
         kfkaManager.evictExpired();
-        kfkaManager.addListener(l, new KfkaPredicate().lastSeenMessageId(0));
+        kfkaManager.addListener(l, new KfkaPredicate().rewind(1_000));
         assertThat(l.getReceived()).isEmpty();
     }
 
