@@ -32,7 +32,7 @@ public class PojoTest
     @Test
     public void testHashcode()
     {
-        assertThat(new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build().hashCode()).isEqualTo(123);
+        assertThat(new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build().hashCode()).isEqualTo(1213154);
     }
 
     @Test
