@@ -11,6 +11,47 @@ This project aims to give a subset of the benefits of [Apache Kafka](https://kaf
 Kfka currently supports MySQL as a back-end, and has zero dependencies which makes it ideal as an embedded message queue.
 
 # Usage
+
+### Configuration
+
+```java
+final Duration retentionTime = Duration.ofDays(3);
+final Duration cleanInterval = Duration.ofMinutes(30);
+
+final TaskScheduler taskScheduler = ...;
+final DataSource dataSource = ...;
+final RowMapper<MyKfkaMessage> rowMapper = rs ->
+    new MyKfkaMessage.MessageBuilder()
+            .userId(rs.getInt("userId"))
+            .payload(rs.getBytes("payload"))
+            .timestamp(rs.getLong("timestamp"))
+            .topic(rs.getString("topic"))
+            .type(rs.getString("type"))
+            .id(rs.getLong("id"))
+            .messageId(rs.getString("message_id"))
+            .build();
+
+final KfkaMessageStore msgStore = new MysqlKfkaMessageStore<>(dataSource, rowMapper, retentionTime);
+final KfkaManager kfkaManager = new KfkaManagerImpl(msgStore);
+taskScheduler.scheduleAtFixedRate(kfkaManager::evictExpired, cleanInterval);
+```
+
+### MySQL table definition
+
+```ddl
+CREATE TABLE `kfka` (
+  `id` bigint AUTO_INCREMENT NOT NULL,
+  `message_id` char(12) NOT NULL,
+  `timestamp` bigint NOT NULL,
+  `payload` blob NOT NULL,
+  `topic` varchar(255) NOT NULL,
+  `type` varchar(255) NOT NULL,
+  `userId` int,
+  PRIMARY KEY (`id`)
+);
+```
+
+### Listen for events
 ```java
 kfkaManager.addListener((msg)->
 {
