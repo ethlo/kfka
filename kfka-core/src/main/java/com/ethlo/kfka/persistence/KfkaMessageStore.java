@@ -36,7 +36,7 @@ public interface KfkaMessageStore
 
     void sendAfter(String messageId, final KfkaPredicate predicate, KfkaMessageListener l);
 
-    Optional<String> getMessageIdForRewind(int offset, final KfkaPredicate predicate);
+    Optional<String> getMessageIdForRewind(final KfkaPredicate predicate);
 
     void clearExpired();
 

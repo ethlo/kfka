@@ -46,7 +46,6 @@ import com.ethlo.kfka.KfkaPredicate;
 import com.ethlo.kfka.UnknownMessageIdException;
 import com.ethlo.kfka.persistence.KfkaMessageStore;
 import com.ethlo.kfka.util.AbstractIterator;
-import com.ethlo.kfka.util.RandomUtil;
 import com.ethlo.kfka.util.ReflectionUtil;
 
 public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessageStore
@@ -193,26 +192,26 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     private <T extends KfkaMessage> String getInsertSql(T value)
     {
         final Collection<String> extraProps = value.getQueryableProperties();
-        final String extraColsStr = (extraProps.isEmpty() ? "" : (", " + collectionToDelimitedString(extraProps, ", ")));
+        final String extraColsStr = (extraProps.isEmpty() ? "" : (", " + collectionToCommaDelimitedString(extraProps)));
         return "INSERT INTO kfka (id, message_id, type, topic, timestamp, payload" + extraColsStr + ")"
-                + " VALUES(" + repeat(6 + extraProps.size(), "?", ", ") + ")";
+                + " VALUES(" + repeat(6 + extraProps.size()) + ")";
     }
 
-    private String collectionToDelimitedString(Collection<?> props, String delim)
+    private String collectionToCommaDelimitedString(Collection<?> props)
     {
         return props.stream()
                 .map(String::valueOf)
-                .collect(Collectors.joining(delim));
+                .collect(Collectors.joining(", "));
     }
 
-    private String repeat(int size, String s, String delim)
+    private String repeat(int size)
     {
         final List<String> tmp = new ArrayList<>(size);
         for (int i = 0; i < size; i++)
         {
-            tmp.add(s);
+            tmp.add("?");
         }
-        return collectionToDelimitedString(tmp, delim);
+        return collectionToCommaDelimitedString(tmp);
     }
 
     @Override
@@ -264,8 +263,9 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     }
 
     @Override
-    public Optional<String> getMessageIdForRewind(final int offset, final KfkaPredicate predicate)
+    public Optional<String> getMessageIdForRewind(final KfkaPredicate predicate)
     {
+        final int rewind = predicate.getRewind();
         final StringBuilder sql = new StringBuilder("SELECT message_id FROM kfka WHERE timestamp > ?");
         final List<Object> params = new LinkedList<>();
         params.add(System.currentTimeMillis() - ttl.toMillis());
@@ -277,7 +277,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
             int count = 0;
             try
             {
-                while (rs.next() && count++ < offset)
+                while (rs.next() && count++ < rewind)
                 {
                     firstFound = rs.getString(1);
                 }
@@ -287,7 +287,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
                 throw new RuntimeSqlException(exc);
             }
 
-            return count >= offset ? Optional.ofNullable(firstFound) : Optional.empty();
+            return Optional.ofNullable(firstFound);
         });
     }
 

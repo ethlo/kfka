@@ -108,15 +108,11 @@ public class KfkaManagerImpl implements KfkaManager
 
     private void sendDataWithRewind(final KfkaPredicate predicate, KfkaMessageListener l)
     {
-        final Optional<String> messageId = kfkaMessageStore.getMessageIdForRewind(predicate.getRewind(), predicate);
+        final Optional<String> messageId = kfkaMessageStore.getMessageIdForRewind(predicate);
         if (messageId.isPresent())
         {
+            // We found a message to start from
             messageId.ifPresent(id -> kfkaMessageStore.sendIncluding(id, predicate, l));
-        }
-        else
-        {
-            // All as we did not find a message
-            kfkaMessageStore.sendAll(predicate, l);
         }
     }
 
