@@ -27,7 +27,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Function;
 
 import javax.sql.DataSource;
@@ -66,13 +65,10 @@ public class SimpleJdbcTemplate
     {
         try (final Connection conn = dataSource.getConnection(); final PreparedStatement stat = setParams(conn.prepareStatement(sql,
                 java.sql.ResultSet.TYPE_FORWARD_ONLY,
-                java.sql.ResultSet.CONCUR_READ_ONLY), params))
+                java.sql.ResultSet.CONCUR_READ_ONLY
+        ), params))
         {
-            if (conn.getMetaData().getDatabaseProductName().toLowerCase().contains("mysql"))
-            {
-                stat.setFetchSize(Integer.MIN_VALUE);
-            }
-
+            stat.setFetchSize(1);
             try (final ResultSet rs = stat.executeQuery())
             {
                 return callback.apply(rs);

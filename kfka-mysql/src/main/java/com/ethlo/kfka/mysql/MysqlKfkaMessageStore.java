@@ -193,8 +193,8 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     {
         final Collection<String> extraProps = value.getQueryableProperties();
         final String extraColsStr = (extraProps.isEmpty() ? "" : (", " + collectionToCommaDelimitedString(extraProps)));
-        return "INSERT INTO kfka (id, message_id, type, topic, timestamp, payload" + extraColsStr + ")"
-                + " VALUES(" + repeat(6 + extraProps.size()) + ")";
+        return "INSERT INTO kfka (message_id, type, topic, timestamp, payload" + extraColsStr + ")"
+                + " VALUES(" + repeat(5 + extraProps.size()) + ")";
     }
 
     private String collectionToCommaDelimitedString(Collection<?> props)
@@ -223,7 +223,6 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     private List<Object> getInsertParams(KfkaMessage value)
     {
         final List<Object> result = new LinkedList<>();
-        result.add(value.getId());
         result.add(value.getMessageId());
         result.add(value.getType());
         result.add(value.getTopic());
