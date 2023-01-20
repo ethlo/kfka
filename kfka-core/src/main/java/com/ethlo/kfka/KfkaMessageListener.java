@@ -20,7 +20,7 @@ package com.ethlo.kfka;
  * #L%
  */
 
-public interface KfkaMessageListener
+public interface KfkaMessageListener<T>
 {
-    void onMessage(KfkaMessage msg);
+    void onMessage(T msg);
 }

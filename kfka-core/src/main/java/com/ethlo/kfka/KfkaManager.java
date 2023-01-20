@@ -20,22 +20,22 @@ package com.ethlo.kfka;
  * #L%
  */
 
-public interface KfkaManager
+public interface KfkaManager<T extends KfkaMessage>
 {
-    KfkaMessage add(KfkaMessage msg);
+    T add(T msg);
 
     long size();
 
-    default void addListener(KfkaMessageListener l)
+    default void addListener(KfkaMessageListener<T> listener)
     {
-        addListener(l, new KfkaPredicate());
+        addListener(listener, new KfkaPredicate());
     }
 
-    KfkaMessageListener addListener(KfkaMessageListener l, KfkaPredicate kfkaPredicate);
+    KfkaMessageListener<T> addListener(KfkaMessageListener<T> listener, KfkaPredicate kfkaPredicate);
 
     void clear();
 
-    void removeListener(KfkaMessageListener listener);
+    void removeListener(KfkaMessageListener<T> listener);
 
     void evictExpired();
 }

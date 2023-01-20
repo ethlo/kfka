@@ -44,25 +44,34 @@ import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaMessageListener;
 import com.ethlo.kfka.KfkaPredicate;
 import com.ethlo.kfka.UnknownMessageIdException;
+import com.ethlo.kfka.compression.NopPayloadCompressor;
+import com.ethlo.kfka.compression.PayloadCompressor;
 import com.ethlo.kfka.persistence.KfkaMessageStore;
 import com.ethlo.kfka.util.AbstractIterator;
 import com.ethlo.kfka.util.ReflectionUtil;
 
-public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessageStore
+public class MysqlKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageStore<T>
 {
     private static final Logger logger = LoggerFactory.getLogger(MysqlKfkaMessageStore.class);
 
-    private final RowMapper<B> mapper;
+    private final RowMapper<T> mapper;
     private final Duration ttl;
 
     private final DataSource dataSource;
     private final SimpleJdbcTemplate simpleTpl;
+    private final PayloadCompressor payloadCompressor;
 
-    public MysqlKfkaMessageStore(DataSource dataSource, RowMapper<B> mapper, Duration ttl)
+    public MysqlKfkaMessageStore(DataSource dataSource, RowMapper<T> mapper, Duration ttl)
+    {
+        this(dataSource, mapper, ttl, new NopPayloadCompressor());
+    }
+
+    public MysqlKfkaMessageStore(DataSource dataSource, RowMapper<T> mapper, Duration ttl, final PayloadCompressor payloadCompressor)
     {
         this.dataSource = dataSource;
         this.mapper = mapper;
         this.ttl = ttl;
+        this.payloadCompressor = payloadCompressor;
         this.simpleTpl = new SimpleJdbcTemplate(dataSource);
     }
 
@@ -71,7 +80,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
         return System.currentTimeMillis() - ttl.toMillis();
     }
 
-    private <T extends KfkaMessage> AbstractIterator<T> fromMessageIdIterator(final String lastSeenMessageId, final KfkaPredicate predicate)
+    private AbstractIterator<T> fromMessageIdIterator(final String lastSeenMessageId, final KfkaPredicate predicate)
     {
         final Long internalId = simpleTpl.queryForObject("SELECT id FROM kfka WHERE message_id = ?", Collections.singletonList(lastSeenMessageId), Long.class);
         if (internalId != null)
@@ -82,7 +91,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
         throw new UnknownMessageIdException(lastSeenMessageId);
     }
 
-    private <T extends KfkaMessage> AbstractIterator<T> fromMessageIdIterator(final Long lastSeenMessageId, final KfkaPredicate predicate)
+    private AbstractIterator<T> fromMessageIdIterator(final Long lastSeenMessageId, final KfkaPredicate predicate)
     {
         final List<Object> params = new LinkedList<>();
         final StringBuilder sql = new StringBuilder("SELECT * FROM kfka WHERE 1=1");
@@ -128,7 +137,9 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
                 {
                     if (rs.next())
                     {
-                        return (T) mapper.mapRow(rs);
+                        final T e = mapper.mapRow(rs);
+                        e.setPayload(payloadCompressor.decompress(e.getPayload()));
+                        return e;
                     }
                 }
                 catch (SQLException exc)
@@ -180,7 +191,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     }
 
     @Override
-    public <T extends KfkaMessage> T add(T value)
+    public T add(T value)
     {
         final List<Object> params = getInsertParams(value);
         final String sql = getInsertSql(value);
@@ -189,7 +200,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
         return value;
     }
 
-    private <T extends KfkaMessage> String getInsertSql(T value)
+    private String getInsertSql(T value)
     {
         final Collection<String> extraProps = value.getQueryableProperties();
         final String extraColsStr = (extraProps.isEmpty() ? "" : (", " + collectionToCommaDelimitedString(extraProps)));
@@ -226,8 +237,8 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
         result.add(value.getMessageId());
         result.add(value.getType());
         result.add(value.getTopic());
-        result.add(value.getTimestamp());
-        result.add(value.getPayload());
+        result.add(value.getTimestamp().toInstant().toEpochMilli());
+        result.add(payloadCompressor.compress(value.getPayload()));
 
         for (String propName : value.getQueryableProperties())
         {
@@ -244,9 +255,9 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     }
 
     @Override
-    public void sendAfter(final String messageId, final KfkaPredicate predicate, final KfkaMessageListener l)
+    public void sendAfter(final String messageId, final KfkaPredicate predicate, final KfkaMessageListener<T> l)
     {
-        try (final AbstractIterator<KfkaMessage> iter = fromMessageIdIterator(messageId, predicate))
+        try (final AbstractIterator<T> iter = fromMessageIdIterator(messageId, predicate))
         {
             if (iter.hasNext())
             {
@@ -255,7 +266,7 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
             }
             while (iter.hasNext())
             {
-                final KfkaMessage msg = iter.next();
+                final T msg = iter.next();
                 l.onMessage(msg);
             }
         }
@@ -297,26 +308,26 @@ public class MysqlKfkaMessageStore<B extends KfkaMessage> implements KfkaMessage
     }
 
     @Override
-    public void sendAll(final KfkaPredicate predicate, final KfkaMessageListener l)
+    public void sendAll(final KfkaPredicate predicate, final KfkaMessageListener<T> l)
     {
-        try (final AbstractIterator<KfkaMessage> iter = fromMessageIdIterator((Long)null, predicate))
+        try (final AbstractIterator<T> iter = fromMessageIdIterator((Long) null, predicate))
         {
             while (iter.hasNext())
             {
-                final KfkaMessage msg = iter.next();
+                final T msg = iter.next();
                 l.onMessage(msg);
             }
         }
     }
 
     @Override
-    public void sendIncluding(final String messageId, final KfkaPredicate predicate, final KfkaMessageListener l)
+    public void sendIncluding(final String messageId, final KfkaPredicate predicate, final KfkaMessageListener<T> l)
     {
-        try (final AbstractIterator<KfkaMessage> iter = fromMessageIdIterator(messageId, predicate))
+        try (final AbstractIterator<T> iter = fromMessageIdIterator(messageId, predicate))
         {
             while (iter.hasNext())
             {
-                final KfkaMessage msg = iter.next();
+                final T msg = iter.next();
                 l.onMessage(msg);
             }
         }

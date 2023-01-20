@@ -22,6 +22,7 @@ package com.ethlo.kfka;
 
 import static com.ethlo.kfka.KfkaMessage.MESSAGE_ID_LENGTH;
 
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,28 +31,28 @@ import java.util.concurrent.ConcurrentMap;
 import com.ethlo.kfka.persistence.KfkaMessageStore;
 import com.ethlo.kfka.util.RandomUtil;
 
-public class KfkaManagerImpl implements KfkaManager
+public class KfkaManagerImpl<T extends KfkaMessage> implements KfkaManager<T>
 {
-    private final KfkaMessageStore kfkaMessageStore;
-    private final ConcurrentMap<KfkaMessageListener, KfkaPredicate> msgListeners = new ConcurrentHashMap<>();
+    private final KfkaMessageStore<T> kfkaMessageStore;
+    private final ConcurrentMap<KfkaMessageListener<T>, KfkaPredicate> msgListeners = new ConcurrentHashMap<>();
 
-    public KfkaManagerImpl(KfkaMessageStore kfkaMessageStore)
+    public KfkaManagerImpl(KfkaMessageStore<T> kfkaMessageStore)
     {
         this.kfkaMessageStore = kfkaMessageStore;
     }
 
     @Override
-    public void addListener(KfkaMessageListener l)
+    public void addListener(KfkaMessageListener<T> l)
     {
         this.addListener(l, new KfkaPredicate());
     }
 
     @Override
-    public KfkaMessage add(KfkaMessage msg)
+    public T add(T msg)
     {
         if (msg.getTimestamp() == null)
         {
-            msg.timestamp(System.currentTimeMillis());
+            msg.timestamp(OffsetDateTime.now());
         }
 
         if (msg.getMessageId() == null)
@@ -62,9 +63,9 @@ public class KfkaManagerImpl implements KfkaManager
         kfkaMessageStore.add(msg);
 
         // Push real-time
-        for (final Map.Entry<KfkaMessageListener, KfkaPredicate> e : msgListeners.entrySet())
+        for (final Map.Entry<KfkaMessageListener<T>, KfkaPredicate> e : msgListeners.entrySet())
         {
-            final KfkaMessageListener l = e.getKey();
+            final KfkaMessageListener<T> l = e.getKey();
             final KfkaPredicate p = e.getValue();
             if (p.matches(msg))
             {
@@ -87,37 +88,37 @@ public class KfkaManagerImpl implements KfkaManager
         this.kfkaMessageStore.clear();
     }
 
-    public KfkaMessageListener addListener(KfkaMessageListener l, KfkaPredicate kfkaPredicate)
+    public KfkaMessageListener<T> addListener(KfkaMessageListener<T> listener, KfkaPredicate kfkaPredicate)
     {
         if (kfkaPredicate.getMessageId() != null)
         {
             // We have a message id
-            kfkaMessageStore.sendAfter(kfkaPredicate.getMessageId(), kfkaPredicate, l);
+            kfkaMessageStore.sendAfter(kfkaPredicate.getMessageId(), kfkaPredicate, listener);
         }
         else if (kfkaPredicate.getRewind() != null)
         {
             // We have rewind
-            sendDataWithRewind(kfkaPredicate, l);
+            sendDataWithRewind(kfkaPredicate, listener);
         }
 
         // Add to set of listeners, with the desired predicate
-        msgListeners.put(l, kfkaPredicate);
+        msgListeners.put(listener, kfkaPredicate);
 
-        return l;
+        return listener;
     }
 
-    private void sendDataWithRewind(final KfkaPredicate predicate, KfkaMessageListener l)
+    private void sendDataWithRewind(final KfkaPredicate predicate, KfkaMessageListener<T> listener)
     {
         final Optional<String> messageId = kfkaMessageStore.getMessageIdForRewind(predicate);
         if (messageId.isPresent())
         {
             // We found a message to start from
-            messageId.ifPresent(id -> kfkaMessageStore.sendIncluding(id, predicate, l));
+            messageId.ifPresent(id -> kfkaMessageStore.sendIncluding(id, predicate, listener));
         }
     }
 
     @Override
-    public void removeListener(KfkaMessageListener listener)
+    public void removeListener(KfkaMessageListener<T> listener)
     {
         this.msgListeners.remove(listener);
     }

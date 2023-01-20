@@ -22,6 +22,10 @@ package com.ethlo.kfka;
 
 public class Assert
 {
+    private Assert()
+    {
+    }
+
     public static void notNull(Object object, String message)
     {
         if (object == null)

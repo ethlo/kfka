@@ -42,8 +42,7 @@ public class PojoTest
         final CustomKfkaMessage b = new CustomKfkaMessage.CustomKfkaMessageBuilder().id(12131L).topic("bar").type("foo").payload("payload").build();
         final CustomKfkaMessage c = new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build();
 
-        assertThat(a).isNotEqualTo(b);
-        assertThat(a).isEqualTo(c);
+        assertThat(a).isNotEqualTo(b).isEqualTo(c);
     }
 
     @Test

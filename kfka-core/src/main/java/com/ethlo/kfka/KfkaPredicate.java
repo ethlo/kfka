@@ -31,15 +31,13 @@ import com.ethlo.kfka.util.ReflectionUtil;
 
 public class KfkaPredicate implements Serializable
 {
+    // Support custom properties
+    private final Map<String, Serializable> propertyMatch = new TreeMap<>();
     private Integer relativeOffset;
     private String messageId;
-
     // Filtering
     private String topic;
     private String type;
-
-    // Support custom properties
-    private final Map<String, Serializable> propertyMatch = new TreeMap<>();
 
     public KfkaPredicate topic(String topic)
     {

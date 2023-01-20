@@ -1,6 +1,9 @@
 package com.ethlo.kfka.mysql;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 import javax.sql.DataSource;
 
@@ -13,6 +16,7 @@ import com.acme.CustomKfkaMessage;
 import com.acme.CustomKfkaMessage.CustomKfkaMessageBuilder;
 import com.ethlo.kfka.KfkaManager;
 import com.ethlo.kfka.KfkaManagerImpl;
+import com.ethlo.kfka.compression.GzipPayloadCompressor;
 import com.ethlo.kfka.persistence.KfkaMessageStore;
 
 /*-
@@ -48,26 +52,26 @@ public class TestCfg
     }
 
     @Bean
-    public KfkaMessageStore mapStore(DataSource ds)
+    public KfkaMessageStore<CustomKfkaMessage> mapStore(DataSource ds)
     {
         final Duration ttl = Duration.ofMinutes(30);
         final RowMapper<CustomKfkaMessage> ROW_MAPPER = rs ->
                 new CustomKfkaMessageBuilder()
                         .userId(rs.getInt("userId"))
                         .payload(rs.getBytes("payload"))
-                        .timestamp(rs.getLong("timestamp"))
+                        .timestamp(OffsetDateTime.ofInstant(Instant.ofEpochMilli(rs.getLong("timestamp")), ZoneOffset.UTC))
                         .topic(rs.getString("topic"))
                         .type(rs.getString("type"))
                         .id(rs.getLong("id"))
                         .messageId(rs.getString("message_id"))
                         .build();
 
-        return new MysqlKfkaMessageStore<>(ds, ROW_MAPPER, ttl);
+        return new MysqlKfkaMessageStore<>(ds, ROW_MAPPER, ttl, new GzipPayloadCompressor());
     }
 
     @Bean
-    public KfkaManager kfkaManager(KfkaMessageStore messageStore)
+    public KfkaManager<CustomKfkaMessage> kfkaManager(KfkaMessageStore<CustomKfkaMessage> messageStore)
     {
-        return new KfkaManagerImpl(messageStore);
+        return new KfkaManagerImpl<>(messageStore);
     }
 }

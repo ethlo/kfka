@@ -20,7 +20,6 @@ package com.acme;
  * #L%
  */
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -53,11 +52,10 @@ public class CustomKfkaMessage extends KfkaMessage
         return Collections.singletonList("userId");
     }
 
-    public static class CustomKfkaMessageBuilder extends Builder
+    public static class CustomKfkaMessageBuilder extends Builder<CustomKfkaMessage>
     {
         private int userId;
 
-        @SuppressWarnings("unchecked")
         @Override
         public CustomKfkaMessage build()
         {

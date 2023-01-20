@@ -22,25 +22,24 @@ package com.ethlo.kfka.persistence;
 
 import java.util.Optional;
 
-import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaMessageListener;
 import com.ethlo.kfka.KfkaPredicate;
 
-public interface KfkaMessageStore
+public interface KfkaMessageStore<T>
 {
-    <T extends KfkaMessage> T add(T message);
+    T add(T message);
 
     long size();
 
     void clear();
 
-    void sendAfter(String messageId, final KfkaPredicate predicate, KfkaMessageListener l);
+    void sendAfter(String messageId, final KfkaPredicate predicate, KfkaMessageListener<T> l);
 
     Optional<String> getMessageIdForRewind(final KfkaPredicate predicate);
 
     void clearExpired();
 
-    void sendAll(KfkaPredicate predicate, KfkaMessageListener l);
+    void sendAll(KfkaPredicate predicate, KfkaMessageListener<T> l);
 
-    void sendIncluding(String messageId, KfkaPredicate predicate, KfkaMessageListener l);
+    void sendIncluding(String messageId, KfkaPredicate predicate, KfkaMessageListener<T> l);
 }

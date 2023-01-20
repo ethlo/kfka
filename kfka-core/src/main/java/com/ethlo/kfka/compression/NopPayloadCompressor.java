@@ -1,17 +1,17 @@
-package com.ethlo.kfka;
+package com.ethlo.kfka.compression;
 
 /*-
  * #%L
- * kfka
+ * kfka-core
  * %%
- * Copyright (C) 2017 Morten Haraldsen (ethlo)
+ * Copyright (C) 2017 - 2023 Morten Haraldsen (ethlo)
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,21 +20,17 @@ package com.ethlo.kfka;
  * #L%
  */
 
-import java.util.LinkedList;
-import java.util.List;
-
-public class CollectingListener<T> implements KfkaMessageListener<T>
+public class NopPayloadCompressor implements PayloadCompressor
 {
-    private final List<T> received = new LinkedList<>();
-
     @Override
-    public void onMessage(T msg)
+    public byte[] compress(final byte[] uncompressed)
     {
-        received.add(msg);
+        return uncompressed;
     }
 
-    public List<T> getReceived()
+    @Override
+    public byte[] decompress(final byte[] compressed)
     {
-        return received;
+        return compressed;
     }
 }

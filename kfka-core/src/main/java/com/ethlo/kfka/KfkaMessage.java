@@ -22,23 +22,24 @@ package com.ethlo.kfka;
 
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.Objects;
 
 import com.ethlo.kfka.util.Hex;
-import com.ethlo.kfka.util.RandomUtil;
 
 public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessage>
 {
     public static final int MESSAGE_ID_LENGTH = 12;
+
     private String topic;
-    private long timestamp;
+    private OffsetDateTime timestamp;
     private byte[] payload;
     private String type;
     private Long id;
     private String messageId;
 
-    protected KfkaMessage(Builder builder)
+    protected KfkaMessage(Builder<?> builder)
     {
         if (builder == null)
         {
@@ -63,7 +64,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         return topic;
     }
 
-    public Long getTimestamp()
+    public OffsetDateTime getTimestamp()
     {
         return timestamp;
     }
@@ -119,14 +120,14 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     @Override
     public boolean equals(Object obj)
     {
-        if (obj instanceof KfkaMessage)
+        if (obj instanceof KfkaMessage kfkaMessage)
         {
-            return Objects.equals(id, ((KfkaMessage) obj).id);
+            return Objects.equals(id, kfkaMessage.id);
         }
         return false;
     }
 
-    protected void timestamp(Long timestamp)
+    protected void timestamp(OffsetDateTime timestamp)
     {
         this.timestamp = timestamp;
     }
@@ -141,57 +142,62 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         this.messageId = messageId;
     }
 
-    public abstract static class Builder
+    public void setPayload(byte[] payload)
+    {
+        this.payload = payload;
+    }
+
+    public abstract static class Builder<T>
     {
         private String topic;
-        private Long timestamp = System.currentTimeMillis();
+        private OffsetDateTime timestamp = OffsetDateTime.now();
         private byte[] payload;
         private String type;
         private Long id;
         private String messageId;
 
-        public Builder topic(String topic)
+        public Builder<T> topic(String topic)
         {
             this.topic = topic;
             return this;
         }
 
-        public Builder timestamp(long timestamp)
+        public Builder<T> timestamp(OffsetDateTime timestamp)
         {
             this.timestamp = timestamp;
             return this;
         }
 
-        public Builder payload(String message)
+        public Builder<T> payload(String message)
         {
             this.payload = message.getBytes(StandardCharsets.UTF_8);
             return this;
         }
 
-        public Builder payload(byte[] payload)
+        public Builder<T> payload(byte[] payload)
         {
             this.payload = payload;
             return this;
         }
 
-        public Builder type(String type)
+        public Builder<T> type(String type)
         {
             this.type = type;
             return this;
         }
 
-        public Builder id(Long id)
+        public Builder<T> id(Long id)
         {
             this.id = id;
             return this;
         }
 
-        public Builder messageId(final String messageId)
+        public Builder<T> messageId(final String messageId)
         {
             this.messageId = messageId;
             return this;
         }
 
-        public abstract <T extends KfkaMessage> T build();
+        public abstract T build();
     }
 }

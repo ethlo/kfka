@@ -22,6 +22,7 @@ package com.ethlo.kfka.mysql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.OffsetDateTime;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -50,13 +51,7 @@ public class KfkaTest
     private final Logger logger = LoggerFactory.getLogger(KfkaTest.class);
 
     @Autowired
-    private KfkaManager kfkaManager;
-
-    @Test
-    public void contextLoads()
-    {
-        assertThat(true).isTrue();
-    }
+    private KfkaManager<CustomKfkaMessage> kfkaManager;
 
     @Test
     public void testQueryLast()
@@ -66,7 +61,7 @@ public class KfkaTest
         final List<String> messageIds = new LinkedList<>();
         for (int i = 0; i < 1_000; i++)
         {
-            final KfkaMessage msg = kfkaManager.add(new CustomKfkaMessageBuilder().payload("" + i).topic("mytopic").type("mytype").build());
+            final CustomKfkaMessage msg = kfkaManager.add(new CustomKfkaMessageBuilder().payload("" + i).topic("mytopic").type("mytype").build());
             messageIds.add(msg.getMessageId());
         }
 
@@ -75,8 +70,8 @@ public class KfkaTest
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage").topic("mytopic").type("mytype").build());
 
         assertThat(received).hasSize(2);
-        assertThat(received.get(0).getPayload()).isEqualTo("999".getBytes());
-        assertThat(received.get(1).getPayload()).isEqualTo("myMessage".getBytes());
+        assertThat(received.get(0).getPayload()).isEqualTo("999" .getBytes());
+        assertThat(received.get(1).getPayload()).isEqualTo("myMessage" .getBytes());
     }
 
     @Test
@@ -193,42 +188,19 @@ public class KfkaTest
     {
         kfkaManager.clear();
 
-        kfkaManager.add(new CustomKfkaMessageBuilder()
-                .userId(321)
-                .payload("myMessage1")
-                .topic("bar")
-                .type("mytype")
-                .build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().userId(321).payload("myMessage1").topic("bar").type("mytype").build());
 
-        kfkaManager.add(new CustomKfkaMessageBuilder()
-                .userId(123)
-                .payload("myMessage2")
-                .topic("bar")
-                .type("mytype")
-                .build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().userId(123).payload("myMessage2").topic("bar").type("mytype").build());
 
-        final CollectingListener collListener = new CollectingListener();
-        kfkaManager.addListener(collListener, new KfkaPredicate()
-                .topic("bar")
-                .rewind(10)
-                .addPropertyMatch("userId", 123));
+        final CollectingListener<CustomKfkaMessage> collListener = new CollectingListener<>();
+        kfkaManager.addListener(collListener, new KfkaPredicate().topic("bar").rewind(10).addPropertyMatch("userId", 123));
 
         assertThat(collListener.getReceived()).hasSize(1);
         assertThat(collListener.getReceived().get(0).getId()).isEqualTo(2);
 
-        kfkaManager.add(new CustomKfkaMessageBuilder()
-                .userId(123)
-                .payload("myMessage3")
-                .topic("bar")
-                .type("mytype")
-                .build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().userId(123).payload("myMessage3").topic("bar").type("mytype").build());
 
-        kfkaManager.add(new CustomKfkaMessageBuilder()
-                .userId(321)
-                .payload("myMessage4")
-                .topic("bar")
-                .type("mytype")
-                .build());
+        kfkaManager.add(new CustomKfkaMessageBuilder().userId(321).payload("myMessage4").topic("bar").type("mytype").build());
 
         // Need to allow asynchronous messages propagate
         Thread.sleep(100);
@@ -241,19 +213,11 @@ public class KfkaTest
     public void testLastMessageId()
     {
         kfkaManager.clear();
-        final KfkaMessage msg1 = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
-                .topic("foo")
-                .payload("msg1")
-                .type("mytype")
-                .build());
+        final CustomKfkaMessage msg1 = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").payload("msg1").type("mytype").build());
 
-        final KfkaMessage msg2 = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
-                .topic("foo")
-                .type("mytype")
-                .payload("msg2")
-                .build());
+        final CustomKfkaMessage msg2 = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").payload("msg2").build());
 
-        final CollectingListener l = new CollectingListener();
+        final CollectingListener<CustomKfkaMessage> l = new CollectingListener<>();
         kfkaManager.addListener(l, new KfkaPredicate().lastSeenMessageId(msg1.getMessageId()));
         assertThat(l.getReceived()).hasSize(1);
         assertThat(l.getReceived()).contains(msg2);
@@ -263,10 +227,8 @@ public class KfkaTest
     public void testMessagesPersisted()
     {
         kfkaManager.clear();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
-                .topic("foo")
-                .type("mytype").build());
-        final CollectingListener l = new CollectingListener();
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
+        final CollectingListener<CustomKfkaMessage> l = new CollectingListener<>();
         kfkaManager.addListener(l, new KfkaPredicate().rewind(1));
         assertThat(l.getReceived()).hasSize(1);
     }
@@ -275,11 +237,8 @@ public class KfkaTest
     public void testMessagesExpire()
     {
         kfkaManager.clear();
-        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1")
-                .topic("foo")
-                .timestamp(0)
-                .type("mytype").build());
-        final CollectingListener l = new CollectingListener();
+        kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").timestamp(OffsetDateTime.parse("2000-01-01T00:00:00Z")).type("mytype").build());
+        final CollectingListener<CustomKfkaMessage> l = new CollectingListener<>();
         kfkaManager.evictExpired();
         kfkaManager.addListener(l, new KfkaPredicate().rewind(1_000));
         assertThat(l.getReceived()).isEmpty();
@@ -295,33 +254,20 @@ public class KfkaTest
         sw.start("Insert1");
         for (int i = 1; i <= count; i++)
         {
-            kfkaManager.add(new CustomKfkaMessageBuilder()
-                    .userId(321)
-                    .payload("otherMessage" + i)
-                    .topic("bar")
-                    .type("mytype")
-                    .build());
+            kfkaManager.add(new CustomKfkaMessageBuilder().userId(321).payload("otherMessage" + i).topic("bar").type("mytype").build());
         }
         sw.stop();
 
         sw.start("Insert2");
         for (int i = 1; i <= count; i++)
         {
-            kfkaManager.add(new CustomKfkaMessageBuilder()
-                    .userId(123)
-                    .payload("myMessage" + 1)
-                    .topic("bar")
-                    .type("mytype")
-                    .build());
+            kfkaManager.add(new CustomKfkaMessageBuilder().userId(123).payload("myMessage" + 1).topic("bar").type("mytype").build());
         }
         sw.stop();
 
         sw.start("Query");
-        final CollectingListener collListener = new CollectingListener();
-        kfkaManager.addListener(collListener, new KfkaPredicate()
-                .topic("bar")
-                .rewind(count + 10)
-                .addPropertyMatch("userId", 123));
+        final CollectingListener<CustomKfkaMessage> collListener = new CollectingListener<>();
+        kfkaManager.addListener(collListener, new KfkaPredicate().topic("bar").rewind(count + 10).addPropertyMatch("userId", 123));
         sw.stop();
         assertThat(collListener.getReceived()).hasSize(count);
         assertThat(collListener.getReceived().get(0).getId()).isEqualTo(count + 1);
