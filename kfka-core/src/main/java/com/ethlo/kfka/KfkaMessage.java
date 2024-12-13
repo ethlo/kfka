@@ -74,6 +74,11 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         return payload;
     }
 
+    public void setPayload(byte[] payload)
+    {
+        this.payload = payload;
+    }
+
     public String getType()
     {
         return type;
@@ -140,11 +145,6 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     public void setMessageId(final String messageId)
     {
         this.messageId = messageId;
-    }
-
-    public void setPayload(byte[] payload)
-    {
-        this.payload = payload;
     }
 
     public abstract static class Builder<T>

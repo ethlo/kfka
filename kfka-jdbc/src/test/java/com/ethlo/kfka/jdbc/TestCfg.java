@@ -1,4 +1,4 @@
-package com.ethlo.kfka.mysql;
+package com.ethlo.kfka.jdbc;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -66,7 +66,9 @@ public class TestCfg
                         .messageId(rs.getString("message_id"))
                         .build();
 
-        return new MysqlKfkaMessageStore<>(ds, ROW_MAPPER, ttl, new GzipPayloadCompressor());
+        return new JdbcKfkaMessageStore<>(ds, ROW_MAPPER, ttl, new GzipPayloadCompressor(), 10_000)
+        {
+        };
     }
 
     @Bean

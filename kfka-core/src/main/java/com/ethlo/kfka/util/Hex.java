@@ -22,7 +22,7 @@ package com.ethlo.kfka.util;
 
 public class Hex
 {
-    private static final char[] HEX_ARRAY = "0123456789ABCDEF" .toCharArray();
+    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
     private Hex()
     {

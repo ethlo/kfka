@@ -23,6 +23,7 @@ package com.ethlo.kfka;
 import static com.ethlo.kfka.KfkaMessage.MESSAGE_ID_LENGTH;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,32 +49,37 @@ public class KfkaManagerImpl<T extends KfkaMessage> implements KfkaManager<T>
     }
 
     @Override
-    public T add(T msg)
+    public void addAll(List<T> messages)
     {
-        if (msg.getTimestamp() == null)
+        final OffsetDateTime now = OffsetDateTime.now();
+        messages.forEach(msg ->
         {
-            msg.timestamp(OffsetDateTime.now());
-        }
+            if (msg.getTimestamp() == null)
+            {
+                msg.timestamp(now);
+            }
 
-        if (msg.getMessageId() == null)
-        {
-            msg.setMessageId(RandomUtil.generateAsciiString(MESSAGE_ID_LENGTH));
-        }
+            if (msg.getMessageId() == null)
+            {
+                msg.setMessageId(RandomUtil.generateAsciiString(MESSAGE_ID_LENGTH));
+            }
+        });
 
-        kfkaMessageStore.add(msg);
+        kfkaMessageStore.addAll(messages);
 
         // Push real-time
         for (final Map.Entry<KfkaMessageListener<T>, KfkaPredicate> e : msgListeners.entrySet())
         {
-            final KfkaMessageListener<T> l = e.getKey();
-            final KfkaPredicate p = e.getValue();
-            if (p.matches(msg))
+            messages.forEach(msg ->
             {
-                l.onMessage(msg);
-            }
+                final KfkaMessageListener<T> l = e.getKey();
+                final KfkaPredicate p = e.getValue();
+                if (p.matches(msg))
+                {
+                    l.onMessage(msg);
+                }
+            });
         }
-
-        return msg;
     }
 
     @Override

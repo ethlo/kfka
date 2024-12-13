@@ -1,4 +1,4 @@
-package com.ethlo.kfka.mysql;
+package com.ethlo.kfka.jdbc;
 
 /*-
  * #%L
@@ -33,6 +33,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
@@ -50,29 +51,30 @@ import com.ethlo.kfka.persistence.KfkaMessageStore;
 import com.ethlo.kfka.util.AbstractIterator;
 import com.ethlo.kfka.util.ReflectionUtil;
 
-public class MysqlKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageStore<T>
+public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageStore<T>
 {
-    private static final Logger logger = LoggerFactory.getLogger(MysqlKfkaMessageStore.class);
+    private static final Logger logger = LoggerFactory.getLogger(JdbcKfkaMessageStore.class);
 
     private final RowMapper<T> mapper;
     private final Duration ttl;
-
     private final DataSource dataSource;
     private final SimpleJdbcTemplate simpleTpl;
     private final PayloadCompressor payloadCompressor;
+    private int batchSize;
 
-    public MysqlKfkaMessageStore(DataSource dataSource, RowMapper<T> mapper, Duration ttl)
+    public JdbcKfkaMessageStore(DataSource dataSource, RowMapper<T> mapper, Duration ttl)
     {
-        this(dataSource, mapper, ttl, new NopPayloadCompressor());
+        this(dataSource, mapper, ttl, new NopPayloadCompressor(), 1_000);
     }
 
-    public MysqlKfkaMessageStore(DataSource dataSource, RowMapper<T> mapper, Duration ttl, final PayloadCompressor payloadCompressor)
+    public JdbcKfkaMessageStore(DataSource dataSource, RowMapper<T> mapper, Duration ttl, final PayloadCompressor payloadCompressor, final int batchSize)
     {
         this.dataSource = dataSource;
         this.mapper = mapper;
         this.ttl = ttl;
         this.payloadCompressor = payloadCompressor;
         this.simpleTpl = new SimpleJdbcTemplate(dataSource);
+        this.batchSize = batchSize;
     }
 
     private long getTtlTs()
@@ -191,13 +193,26 @@ public class MysqlKfkaMessageStore<T extends KfkaMessage> implements KfkaMessage
     }
 
     @Override
-    public T add(T value)
+    public void addAll(List<T> values)
     {
-        final List<Object> params = getInsertParams(value);
+        if (values.isEmpty())
+        {
+            return;
+        }
+
+        final T value = values.get(0);
         final String sql = getInsertSql(value);
-        final long newId = simpleTpl.insert(sql, params);
-        value.setId(newId);
-        return value;
+
+        final BiConsumer<T, SimpleJdbcTemplate.ParameterSink> sinkConsumer = (v, sink) ->
+        {
+            final List<Object> params = getInsertParams(v);
+            for (int i = 0; i < params.size(); i++)
+            {
+                sink.setObject(i + 1, params.get(i));
+            }
+        };
+
+        simpleTpl.insertBatch(sql, values.iterator(), sinkConsumer, batchSize, KfkaMessage::setId, Long.class);
     }
 
     private String getInsertSql(T value)

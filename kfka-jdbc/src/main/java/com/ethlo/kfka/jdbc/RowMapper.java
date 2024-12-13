@@ -1,4 +1,4 @@
-package com.ethlo.kfka.mysql;
+package com.ethlo.kfka.jdbc;
 
 /*-
  * #%L
@@ -20,12 +20,10 @@ package com.ethlo.kfka.mysql;
  * #L%
  */
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class RuntimeSqlException extends RuntimeException
+public interface RowMapper<T>
 {
-    public RuntimeSqlException(SQLException cause)
-    {
-        super(cause);
-    }
+    T mapRow(ResultSet rs) throws SQLException;
 }

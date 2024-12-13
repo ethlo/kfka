@@ -30,11 +30,11 @@ import com.ethlo.kfka.KfkaMessage;
 
 public class ReflectionUtil
 {
+    private static final Map<Class<?>, Map<String, Field>> fieldCache = new ConcurrentHashMap<>();
+
     private ReflectionUtil()
     {
     }
-
-    private static final Map<Class<?>, Map<String, Field>> fieldCache = new ConcurrentHashMap<>();
 
     public static Map<String, Field> getFields(Class<? extends Serializable> type)
     {

@@ -20,6 +20,8 @@ package com.ethlo.kfka;
  * #L%
  */
 
+import java.util.function.Supplier;
+
 public class Assert
 {
     private Assert()
@@ -31,6 +33,14 @@ public class Assert
         if (object == null)
         {
             throw new IllegalArgumentException(message);
+        }
+    }
+
+    public static void isTrue(boolean expr, Supplier<String> msg)
+    {
+        if (!expr)
+        {
+            throw new IllegalArgumentException(msg.get());
         }
     }
 }

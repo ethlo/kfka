@@ -20,6 +20,7 @@ package com.ethlo.kfka.persistence;
  * #L%
  */
 
+import java.util.List;
 import java.util.Optional;
 
 import com.ethlo.kfka.KfkaMessageListener;
@@ -27,7 +28,7 @@ import com.ethlo.kfka.KfkaPredicate;
 
 public interface KfkaMessageStore<T>
 {
-    T add(T message);
+    void addAll(List<T> values);
 
     long size();
 

@@ -20,9 +20,11 @@ package com.ethlo.kfka;
  * #L%
  */
 
+import java.util.List;
+
 public interface KfkaManager<T extends KfkaMessage>
 {
-    T add(T msg);
+    void addAll(List<T> msgs);
 
     long size();
 
@@ -38,4 +40,10 @@ public interface KfkaManager<T extends KfkaMessage>
     void removeListener(KfkaMessageListener<T> listener);
 
     void evictExpired();
+
+    default T add(T value)
+    {
+        addAll(List.of(value));
+        return value;
+    }
 }

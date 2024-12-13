@@ -1,4 +1,4 @@
-package com.ethlo.kfka.mysql;
+package com.ethlo.kfka.jdbc;
 
 /*-
  * #%L
@@ -23,17 +23,18 @@ package com.ethlo.kfka.mysql;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.util.StopWatch;
 
 import com.acme.CustomKfkaMessage;
@@ -43,7 +44,7 @@ import com.ethlo.kfka.KfkaManager;
 import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaPredicate;
 
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = TestCfg.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class KfkaTest
@@ -54,7 +55,7 @@ public class KfkaTest
     private KfkaManager<CustomKfkaMessage> kfkaManager;
 
     @Test
-    public void testQueryLast()
+    void testQueryLast()
     {
         kfkaManager.clear();
 
@@ -70,12 +71,12 @@ public class KfkaTest
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage").topic("mytopic").type("mytype").build());
 
         assertThat(received).hasSize(2);
-        assertThat(received.get(0).getPayload()).isEqualTo("999" .getBytes());
-        assertThat(received.get(1).getPayload()).isEqualTo("myMessage" .getBytes());
+        assertThat(received.get(0).getPayload()).isEqualTo("999".getBytes());
+        assertThat(received.get(1).getPayload()).isEqualTo("myMessage".getBytes());
     }
 
     @Test
-    public void testQuerySinceBeginningFilteredByTopic()
+    void testQuerySinceBeginningFilteredByTopic()
     {
         kfkaManager.clear();
 
@@ -94,7 +95,7 @@ public class KfkaTest
     }
 
     @Test
-    public void testOnlyNewMessages()
+    void testOnlyNewMessages()
     {
         kfkaManager.clear();
 
@@ -114,7 +115,7 @@ public class KfkaTest
     }
 
     @Test
-    public void testOnlyNewMessagesWhenManyOld()
+    void testOnlyNewMessagesWhenManyOld()
     {
         kfkaManager.clear();
 
@@ -134,7 +135,7 @@ public class KfkaTest
     }
 
     @Test
-    public void testCleanOldMessages()
+    void testCleanOldMessages()
     {
         final String type = "mytype";
 
@@ -157,7 +158,7 @@ public class KfkaTest
     }
 
     @Test
-    public void testSize()
+    void testSize()
     {
         kfkaManager.clear();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
@@ -166,7 +167,7 @@ public class KfkaTest
     }
 
     @Test
-    public void testQueryWithRelativeOffsetFilteredByTopic()
+    void testQueryWithRelativeOffsetFilteredByTopic()
     {
         final String type = "my_type";
 
@@ -210,7 +211,7 @@ public class KfkaTest
     }
 
     @Test
-    public void testLastMessageId()
+    void testLastMessageId()
     {
         kfkaManager.clear();
         final CustomKfkaMessage msg1 = kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").payload("msg1").type("mytype").build());
@@ -224,7 +225,7 @@ public class KfkaTest
     }
 
     @Test
-    public void testMessagesPersisted()
+    void testMessagesPersisted()
     {
         kfkaManager.clear();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").type("mytype").build());
@@ -234,7 +235,7 @@ public class KfkaTest
     }
 
     @Test
-    public void testMessagesExpire()
+    void testMessagesExpire()
     {
         kfkaManager.clear();
         kfkaManager.add(new CustomKfkaMessageBuilder().payload("myMessage1").topic("foo").timestamp(OffsetDateTime.parse("2000-01-01T00:00:00Z")).type("mytype").build());
@@ -245,7 +246,7 @@ public class KfkaTest
     }
 
     @Test
-    public void testPerformance1()
+    void testPerformance1()
     {
         kfkaManager.clear();
 
@@ -265,13 +266,22 @@ public class KfkaTest
         }
         sw.stop();
 
+        sw.start("Insert3");
+        final List<CustomKfkaMessage> messages = new ArrayList<>(count);
+        for (int i = 1; i <= count; i++)
+        {
+            messages.add(new CustomKfkaMessageBuilder().userId(123).payload("myMessage" + 1).topic("bar").type("mytype").build());
+        }
+        kfkaManager.addAll(messages);
+        sw.stop();
+
         sw.start("Query");
         final CollectingListener<CustomKfkaMessage> collListener = new CollectingListener<>();
-        kfkaManager.addListener(collListener, new KfkaPredicate().topic("bar").rewind(count + 10).addPropertyMatch("userId", 123));
+        kfkaManager.addListener(collListener, new KfkaPredicate().topic("bar").rewind(count).addPropertyMatch("userId", 123));
         sw.stop();
         assertThat(collListener.getReceived()).hasSize(count);
-        assertThat(collListener.getReceived().get(0).getId()).isEqualTo(count + 1);
-        assertThat(collListener.getReceived().get(count - 1).getId()).isEqualTo(count + count);
+        assertThat(collListener.getReceived().get(0).getId()).isEqualTo(200_001);
+        assertThat(collListener.getReceived().get(count - 1).getId()).isEqualTo(count * 3);
         logger.info("Timings: {}", sw);
     }
 }

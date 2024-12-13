@@ -1,4 +1,4 @@
-package com.ethlo.kfka.mysql;
+package com.ethlo.kfka.jdbc;
 
 /*-
  * #%L
@@ -22,7 +22,7 @@ package com.ethlo.kfka.mysql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.acme.CustomKfkaMessage;
 
@@ -30,13 +30,13 @@ import com.acme.CustomKfkaMessage;
 public class PojoTest
 {
     @Test
-    public void testHashcode()
+    void testHashcode()
     {
         assertThat(new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build().hashCode()).isEqualTo(1213154);
     }
 
     @Test
-    public void testEquals()
+    void testEquals()
     {
         final CustomKfkaMessage a = new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build();
         final CustomKfkaMessage b = new CustomKfkaMessage.CustomKfkaMessageBuilder().id(12131L).topic("bar").type("foo").payload("payload").build();
@@ -46,7 +46,7 @@ public class PojoTest
     }
 
     @Test
-    public void testToString()
+    void testToString()
     {
         assertThat(new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build().toString()).isNotNull();
     }
