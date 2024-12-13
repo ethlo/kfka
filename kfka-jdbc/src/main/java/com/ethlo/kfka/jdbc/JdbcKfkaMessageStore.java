@@ -212,7 +212,7 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
             }
         };
 
-        simpleTpl.insertBatch(sql, values.iterator(), sinkConsumer, batchSize, KfkaMessage::setId, Long.class);
+        simpleTpl.insertBatch(sql, values.iterator(), sinkConsumer, batchSize);
     }
 
     private String getInsertSql(T value)

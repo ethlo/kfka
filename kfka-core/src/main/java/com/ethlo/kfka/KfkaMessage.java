@@ -106,11 +106,6 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         return this.id;
     }
 
-    public void setId(long newId)
-    {
-        this.id = newId;
-    }
-
     public abstract Collection<String> getQueryableProperties();
 
     @Override
@@ -118,7 +113,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     {
         final int prime = 31;
         int result = 1;
-        result = prime * result + ((id == null) ? 0 : id.hashCode());
+        result = prime * result + ((messageId == null) ? 0 : messageId.hashCode());
         return result;
     }
 
@@ -127,7 +122,7 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     {
         if (obj instanceof KfkaMessage kfkaMessage)
         {
-            return Objects.equals(id, kfkaMessage.id);
+            return Objects.equals(messageId, kfkaMessage.messageId);
         }
         return false;
     }
