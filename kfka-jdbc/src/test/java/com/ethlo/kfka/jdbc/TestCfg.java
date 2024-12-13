@@ -21,7 +21,7 @@ import com.ethlo.kfka.persistence.KfkaMessageStore;
 
 /*-
  * #%L
- * kfka-mysql
+ * kfka-jdbc
  * %%
  * Copyright (C) 2017 Morten Haraldsen (ethlo)
  * %%

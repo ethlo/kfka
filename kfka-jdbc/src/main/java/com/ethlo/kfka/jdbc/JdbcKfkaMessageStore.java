@@ -2,7 +2,7 @@ package com.ethlo.kfka.jdbc;
 
 /*-
  * #%L
- * kfka-mysql
+ * kfka-jdbc
  * %%
  * Copyright (C) 2017 - 2018 Morten Haraldsen (ethlo)
  * %%
