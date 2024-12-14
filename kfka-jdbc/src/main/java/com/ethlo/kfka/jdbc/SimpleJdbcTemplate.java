@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -170,7 +171,7 @@ public class SimpleJdbcTemplate
         }
     }
 
-    public <T> T queryForObject(String sql, List<Object> params, Class<T> type)
+    public <T> Optional<T> queryForObject(String sql, List<Object> params, Class<T> type)
     {
         final List<T> result = queryByRow(sql, params, rs ->
         {
@@ -186,7 +187,7 @@ public class SimpleJdbcTemplate
 
         if (result.isEmpty())
         {
-            return null;
+            return Optional.empty();
         }
 
         if (result.size() > 1)
@@ -194,7 +195,7 @@ public class SimpleJdbcTemplate
             throw new RuntimeSqlException(new SQLException("More than one result found for query"));
         }
 
-        return result.get(0);
+        return Optional.of(result.get(0));
     }
 
     public long update(final String sql, final List<Object> params)

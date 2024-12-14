@@ -20,8 +20,6 @@ package com.ethlo.kfka;
  * #L%
  */
 
-import static com.ethlo.kfka.KfkaMessage.MESSAGE_ID_LENGTH;
-
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -29,17 +27,22 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.ethlo.kfka.persistence.KfkaMessageStore;
-import com.ethlo.kfka.util.RandomUtil;
 
 public class KfkaManagerImpl<T extends KfkaMessage> implements KfkaManager<T>
 {
+    private static final Logger logger = LoggerFactory.getLogger(KfkaManagerImpl.class);
     private final KfkaMessageStore<T> kfkaMessageStore;
     private final ConcurrentMap<KfkaMessageListener<T>, KfkaPredicate> msgListeners = new ConcurrentHashMap<>();
+    private final MessageIdGenerator messageIdGenerator;
 
-    public KfkaManagerImpl(KfkaMessageStore<T> kfkaMessageStore)
+    public KfkaManagerImpl(KfkaMessageStore<T> kfkaMessageStore, MessageIdGenerator messageIdGenerator)
     {
         this.kfkaMessageStore = kfkaMessageStore;
+        this.messageIdGenerator = messageIdGenerator;
     }
 
     @Override
@@ -61,7 +64,8 @@ public class KfkaManagerImpl<T extends KfkaMessage> implements KfkaManager<T>
 
             if (msg.getMessageId() == null)
             {
-                msg.setMessageId(RandomUtil.generateAsciiString(MESSAGE_ID_LENGTH));
+                msg.setMessageId(messageIdGenerator.get());
+                logger.trace("Adding {}", msg.getMessageId());
             }
         });
 
@@ -119,7 +123,11 @@ public class KfkaManagerImpl<T extends KfkaMessage> implements KfkaManager<T>
         if (messageId.isPresent())
         {
             // We found a message to start from
-            messageId.ifPresent(id -> kfkaMessageStore.sendIncluding(id, predicate, listener));
+            kfkaMessageStore.sendIncluding(messageId.get(), predicate, listener);
+        }
+        else
+        {
+            // What should we do here
         }
     }
 

@@ -32,15 +32,15 @@ public class PojoTest
     @Test
     void testHashcode()
     {
-        assertThat(new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build().hashCode()).isEqualTo(1213154);
+        assertThat(new CustomKfkaMessage.CustomKfkaMessageBuilder().topic("bar").type("foo").payload("payload").build().hashCode()).isEqualTo(1213154);
     }
 
     @Test
     void testEquals()
     {
-        final CustomKfkaMessage a = new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build();
-        final CustomKfkaMessage b = new CustomKfkaMessage.CustomKfkaMessageBuilder().id(12131L).topic("bar").type("foo").payload("payload").build();
-        final CustomKfkaMessage c = new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build();
+        final CustomKfkaMessage a = new CustomKfkaMessage.CustomKfkaMessageBuilder().messageId("1213123").topic("bar").type("foo").payload("payload").build();
+        final CustomKfkaMessage b = new CustomKfkaMessage.CustomKfkaMessageBuilder().messageId("12131").topic("bar").type("foo").payload("payload").build();
+        final CustomKfkaMessage c = new CustomKfkaMessage.CustomKfkaMessageBuilder().messageId("1213123").topic("bar").type("foo").payload("payload").build();
 
         assertThat(a).isNotEqualTo(b).isEqualTo(c);
     }
@@ -48,6 +48,6 @@ public class PojoTest
     @Test
     void testToString()
     {
-        assertThat(new CustomKfkaMessage.CustomKfkaMessageBuilder().id(1213123L).topic("bar").type("foo").payload("payload").build().toString()).isNotNull();
+        assertThat(new CustomKfkaMessage.CustomKfkaMessageBuilder().messageId("1213123").topic("bar").type("foo").payload("payload").build().toString()).isNotNull();
     }
 }

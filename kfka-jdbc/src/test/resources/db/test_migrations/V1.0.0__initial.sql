@@ -19,12 +19,11 @@
 ---
 CREATE TABLE `kfka`
 (
-    `id`         bigint AUTO_INCREMENT NOT NULL,
-    `message_id` char(12)              NOT NULL,
-    `timestamp`  bigint                NOT NULL,
-    `payload`    blob                  NOT NULL,
-    `topic`      varchar(255)          NOT NULL,
-    `type`       varchar(255)          NOT NULL,
+    `message_id` varbinary(36) NOT NULL,
+    `timestamp`  bigint        NOT NULL,
+    `payload`    blob          NOT NULL,
+    `topic`      varchar(255)  NOT NULL,
+    `type`       varchar(255)  NOT NULL,
     `userId`     int,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`message_id`)
 );

@@ -71,15 +71,11 @@ public abstract class AbstractIterator<T> implements CloseableIterator<T>, Close
     public final boolean hasNext()
     {
         checkState(state != State.FAILED);
-        switch (state)
-        {
-            case READY:
-                return true;
-            case DONE:
-                return false;
-            default:
-        }
-        return tryToComputeNext();
+        return switch (state) {
+            case READY -> true;
+            case DONE -> false;
+            default -> tryToComputeNext();
+        };
     }
 
     private boolean tryToComputeNext()

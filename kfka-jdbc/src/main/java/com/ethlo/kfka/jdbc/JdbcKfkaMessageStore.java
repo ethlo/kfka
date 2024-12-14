@@ -60,7 +60,7 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
     private final DataSource dataSource;
     private final SimpleJdbcTemplate simpleTpl;
     private final PayloadCompressor payloadCompressor;
-    private int batchSize;
+    private final int batchSize;
 
     public JdbcKfkaMessageStore(DataSource dataSource, RowMapper<T> mapper, Duration ttl)
     {
@@ -84,26 +84,28 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
 
     private AbstractIterator<T> fromMessageIdIterator(final String lastSeenMessageId, final KfkaPredicate predicate)
     {
-        final Long internalId = simpleTpl.queryForObject("SELECT id FROM kfka WHERE message_id = ?", Collections.singletonList(lastSeenMessageId), Long.class);
-        if (internalId != null)
+        final long ttlTs = getTtlTs();
+
+        if (lastSeenMessageId != null && findMessage(lastSeenMessageId, ttlTs).isEmpty())
         {
-            return fromMessageIdIterator(internalId, predicate);
+            throw new UnknownMessageIdException(lastSeenMessageId);
         }
 
-        throw new UnknownMessageIdException(lastSeenMessageId);
-    }
+        final List<Object> params = new ArrayList<>();
+        final StringBuilder sql = new StringBuilder("SELECT * FROM kfka");
 
-    private AbstractIterator<T> fromMessageIdIterator(final Long lastSeenMessageId, final KfkaPredicate predicate)
-    {
-        final List<Object> params = new LinkedList<>();
-        final StringBuilder sql = new StringBuilder("SELECT * FROM kfka WHERE 1=1");
+        // Filter out too old
+        sql.append(" WHERE timestamp > ?");
+
+        // Continue from this message
         if (lastSeenMessageId != null)
         {
-            sql.append(" AND id >= ?");
+            sql.append(" AND message_id >= ?");
         }
-        sql.append(" AND timestamp > ?");
+
         addFilterPredicates(predicate, params, sql);
-        sql.append(" ORDER BY id ASC");
+
+        sql.append(" ORDER BY message_id");
 
         Connection conn;
         PreparedStatement stmt;
@@ -113,11 +115,13 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
             conn = dataSource.getConnection();
             stmt = conn.prepareStatement(sql.toString());
             int index = 1;
+
+            stmt.setLong(index++, ttlTs);
+
             if (lastSeenMessageId != null)
             {
-                stmt.setLong(index++, lastSeenMessageId);
+                stmt.setString(index++, lastSeenMessageId);
             }
-            stmt.setLong(index++, getTtlTs());
 
             for (int i = 0; i < params.size(); i++)
             {
@@ -141,7 +145,12 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
                     {
                         final T e = mapper.mapRow(rs);
                         e.setPayload(payloadCompressor.decompress(e.getPayload()));
+                        logger.trace("Returning: {}", e);
                         return e;
+                    }
+                    else
+                    {
+                        logger.info("Exhausted iterator");
                     }
                 }
                 catch (SQLException exc)
@@ -168,6 +177,24 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
                 }
             }
         };
+    }
+
+    private Optional<byte[]> findMessage(String lastSeenMessageId, long ttlTs)
+    {
+        return simpleTpl.queryForObject("""
+                SELECT message_id
+                FROM kfka
+                WHERE message_id = ?
+                AND timestamp > ?""", List.of(lastSeenMessageId, ttlTs), byte[].class);
+    }
+
+    private long countAvailableAfter(String lastSeenMessageId)
+    {
+        return simpleTpl.queryForObject("""
+                SELECT count(1)
+                FROM kfka
+                WHERE message_id >= ?
+                AND timestamp > ?""", List.of(lastSeenMessageId, getTtlTs()), Long.class).orElseThrow();
     }
 
     private void addFilterPredicates(KfkaPredicate predicate, List<Object> params, StringBuilder sql)
@@ -243,7 +270,7 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
     @Override
     public long size()
     {
-        return this.simpleTpl.queryForObject("SELECT COUNT(id) FROM kfka", Collections.emptyList(), Long.class);
+        return this.simpleTpl.queryForObject("SELECT COUNT(1) FROM kfka", Collections.emptyList(), Long.class).orElseThrow();
     }
 
     private List<Object> getInsertParams(KfkaMessage value)
@@ -279,6 +306,7 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
                 // Skip self
                 iter.next();
             }
+
             while (iter.hasNext())
             {
                 final T msg = iter.next();
@@ -293,9 +321,9 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
         final int rewind = predicate.getRewind();
         final StringBuilder sql = new StringBuilder("SELECT message_id FROM kfka WHERE timestamp > ?");
         final List<Object> params = new LinkedList<>();
-        params.add(System.currentTimeMillis() - ttl.toMillis());
+        params.add(getTtlTs());
         addFilterPredicates(predicate, params, sql);
-        sql.append(" ORDER BY id DESC");
+        sql.append(" ORDER BY message_id DESC");
         return simpleTpl.query(sql.toString(), params, rs ->
         {
             String firstFound = null;
@@ -325,7 +353,7 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
     @Override
     public void sendAll(final KfkaPredicate predicate, final KfkaMessageListener<T> l)
     {
-        try (final AbstractIterator<T> iter = fromMessageIdIterator((Long) null, predicate))
+        try (final AbstractIterator<T> iter = fromMessageIdIterator(null, predicate))
         {
             while (iter.hasNext())
             {

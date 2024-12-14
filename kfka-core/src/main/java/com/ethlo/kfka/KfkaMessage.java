@@ -36,7 +36,6 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     private OffsetDateTime timestamp;
     private byte[] payload;
     private String type;
-    private Long id;
     private String messageId;
 
     protected KfkaMessage(Builder<?> builder)
@@ -55,7 +54,6 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         this.timestamp = builder.timestamp;
         this.payload = builder.payload;
         this.type = builder.type;
-        this.id = builder.id;
         this.messageId = builder.messageId;
     }
 
@@ -87,23 +85,18 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
     @Override
     public int compareTo(KfkaMessage o)
     {
-        return Long.compare(o.id, this.id);
+        return o.messageId.compareTo(this.messageId);
     }
 
     @Override
     public String toString()
     {
-        return "KfkaMessage [id=" + id
-                + ", messageId=" + messageId
+        return "KfkaMessage ["
+                + "messageId=" + messageId
                 + ", topic=" + topic
                 + ", timestamp=" + timestamp
                 + ", payload=" + Hex.bytesToHex(payload)
                 + ", type=" + type;
-    }
-
-    public Long getId()
-    {
-        return this.id;
     }
 
     public abstract Collection<String> getQueryableProperties();
@@ -148,7 +141,6 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         private OffsetDateTime timestamp = OffsetDateTime.now();
         private byte[] payload;
         private String type;
-        private Long id;
         private String messageId;
 
         public Builder<T> topic(String topic)
@@ -178,12 +170,6 @@ public abstract class KfkaMessage implements Serializable, Comparable<KfkaMessag
         public Builder<T> type(String type)
         {
             this.type = type;
-            return this;
-        }
-
-        public Builder<T> id(Long id)
-        {
-            this.id = id;
             return this;
         }
 

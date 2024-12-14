@@ -4,10 +4,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.sql.DataSource;
 
 import org.flywaydb.core.Flyway;
+import org.h2.util.StringUtils;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -62,7 +64,6 @@ public class TestCfg
                         .timestamp(OffsetDateTime.ofInstant(Instant.ofEpochMilli(rs.getLong("timestamp")), ZoneOffset.UTC))
                         .topic(rs.getString("topic"))
                         .type(rs.getString("type"))
-                        .id(rs.getLong("id"))
                         .messageId(rs.getString("message_id"))
                         .build();
 
@@ -74,6 +75,7 @@ public class TestCfg
     @Bean
     public KfkaManager<CustomKfkaMessage> kfkaManager(KfkaMessageStore<CustomKfkaMessage> messageStore)
     {
-        return new KfkaManagerImpl<>(messageStore);
+        final AtomicLong idSource = new AtomicLong();
+        return new KfkaManagerImpl<>(messageStore, () -> StringUtils.pad(Long.toString(idSource.incrementAndGet()), 6, "0", false));
     }
 }
