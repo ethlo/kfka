@@ -34,9 +34,9 @@ public interface KfkaMessageStore<T>
 
     void clear();
 
-    void sendAfter(String messageId, final KfkaPredicate predicate, KfkaMessageListener<T> l);
+    int sendAfter(String messageId, final KfkaPredicate predicate, KfkaMessageListener<T> l);
 
-    Optional<String> getMessageIdForRewind(final KfkaPredicate predicate);
+    Optional<String> getMessageIdForRewind(final KfkaPredicate predicate, int offset);
 
     void clearExpired();
 
@@ -44,5 +44,5 @@ public interface KfkaMessageStore<T>
 
     Optional<String> getLastKnownId();
 
-    void sendIncluding(String messageId, KfkaPredicate predicate, KfkaMessageListener<T> l);
+    int sendIncluding(String messageId, KfkaPredicate predicate, KfkaMessageListener<T> l);
 }

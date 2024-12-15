@@ -98,37 +98,30 @@ public class KfkaManagerImpl<T extends KfkaMessage> implements KfkaManager<T>
         this.kfkaMessageStore.clear();
     }
 
-    public KfkaMessageListener<T> addListener(KfkaMessageListener<T> listener, KfkaPredicate kfkaPredicate)
+    @Override
+    public void addListener(KfkaMessageListener<T> listener, KfkaPredicate kfkaPredicate)
     {
-        if (kfkaPredicate.getMessageId() != null)
-        {
-            // We have a message id
-            kfkaMessageStore.sendAfter(kfkaPredicate.getMessageId(), kfkaPredicate, listener);
-        }
-        else if (kfkaPredicate.getRewind() != null)
-        {
-            // We have rewind
-            sendDataWithRewind(kfkaPredicate, listener);
-        }
-
-        // Add to set of listeners, with the desired predicate
         msgListeners.put(listener, kfkaPredicate);
-
-        return listener;
     }
 
-    private void sendDataWithRewind(final KfkaPredicate predicate, KfkaMessageListener<T> listener)
+    @Override
+    public int addListener(KfkaMessageListener<T> listener, KfkaPredicate kfkaPredicate, String lastMessageId)
     {
-        final Optional<String> messageId = kfkaMessageStore.getMessageIdForRewind(predicate);
-        if (messageId.isPresent())
-        {
-            // We found a message to start from
-            kfkaMessageStore.sendIncluding(messageId.get(), predicate, listener);
-        }
-        else
-        {
-            // What should we do here
-        }
+        msgListeners.put(listener, kfkaPredicate);
+        return kfkaMessageStore.sendAfter(lastMessageId, kfkaPredicate, listener);
+    }
+
+    @Override
+    public int addListener(KfkaMessageListener<T> listener, KfkaPredicate kfkaPredicate, int rewind)
+    {
+        msgListeners.put(listener, kfkaPredicate);
+        return sendDataWithRewind(kfkaPredicate, listener, Math.abs(rewind));
+    }
+
+    private int sendDataWithRewind(final KfkaPredicate predicate, KfkaMessageListener<T> listener, int offset)
+    {
+        final Optional<String> messageId = kfkaMessageStore.getMessageIdForRewind(predicate, offset);
+        return messageId.map(s -> kfkaMessageStore.sendIncluding(s, predicate, listener)).orElse(0);
     }
 
     @Override

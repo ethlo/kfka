@@ -31,11 +31,7 @@ import com.ethlo.kfka.util.ReflectionUtil;
 
 public class KfkaPredicate implements Serializable
 {
-    // Support custom properties
     private final Map<String, Serializable> propertyMatch = new TreeMap<>();
-    private Integer relativeOffset;
-    private String messageId;
-    // Filtering
     private String topic;
     private String type;
 
@@ -59,28 +55,6 @@ public class KfkaPredicate implements Serializable
     public String getType()
     {
         return this.type;
-    }
-
-    public String getMessageId()
-    {
-        return this.messageId;
-    }
-
-    public Integer getRewind()
-    {
-        return relativeOffset;
-    }
-
-    public KfkaPredicate rewind(Integer relativeOffset)
-    {
-        this.relativeOffset = relativeOffset != null ? Math.abs(relativeOffset) : null;
-        return this;
-    }
-
-    public KfkaPredicate lastSeenMessageId(String messageId)
-    {
-        this.messageId = messageId;
-        return this;
     }
 
     public KfkaPredicate addPropertyMatch(String propertyName, Serializable propertyValue)

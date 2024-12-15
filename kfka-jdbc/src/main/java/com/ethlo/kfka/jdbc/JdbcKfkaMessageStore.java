@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -44,7 +45,6 @@ import org.slf4j.LoggerFactory;
 import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaMessageListener;
 import com.ethlo.kfka.KfkaPredicate;
-import com.ethlo.kfka.UnknownMessageIdException;
 import com.ethlo.kfka.compression.NopPayloadCompressor;
 import com.ethlo.kfka.compression.PayloadCompressor;
 import com.ethlo.kfka.persistence.KfkaMessageStore;
@@ -85,11 +85,6 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
     private AbstractIterator<T> fromMessageIdIterator(final String lastSeenMessageId, final KfkaPredicate predicate)
     {
         final long ttlTs = getTtlTs();
-
-        if (lastSeenMessageId != null && findMessage(lastSeenMessageId, ttlTs).isEmpty())
-        {
-            throw new UnknownMessageIdException(lastSeenMessageId);
-        }
 
         final List<Object> params = new ArrayList<>();
         final StringBuilder sql = new StringBuilder("SELECT * FROM kfka");
@@ -199,17 +194,17 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
 
     private void addFilterPredicates(KfkaPredicate predicate, List<Object> params, StringBuilder sql)
     {
-        Optional.ofNullable(predicate.getType()).ifPresent(p ->
+        if (predicate.getType() != null)
         {
-            sql.append(" AND ").append("type").append(" = ?");
-            params.add(p);
-        });
+            sql.append(" AND type = ?");
+            params.add(predicate.getType());
+        }
 
-        Optional.ofNullable(predicate.getTopic()).ifPresent(p ->
+        if (predicate.getTopic() != null)
         {
-            sql.append(" AND ").append("topic").append(" = ?");
-            params.add(p);
-        });
+            sql.append(" AND topic = ?");
+            params.add(predicate.getTopic());
+        }
 
         final Map<String, Serializable> propertyMatches = predicate.getPropertyMatch();
         for (final Map.Entry<String, Serializable> e : propertyMatches.entrySet())
@@ -297,8 +292,9 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
     }
 
     @Override
-    public void sendAfter(final String messageId, final KfkaPredicate predicate, final KfkaMessageListener<T> l)
+    public int sendAfter(final String messageId, final KfkaPredicate predicate, final KfkaMessageListener<T> l)
     {
+        Objects.requireNonNull(messageId, "messageId cannot be null");
         try (final AbstractIterator<T> iter = fromMessageIdIterator(messageId, predicate))
         {
             if (iter.hasNext())
@@ -307,18 +303,20 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
                 iter.next();
             }
 
+            int sent = 0;
             while (iter.hasNext())
             {
                 final T msg = iter.next();
                 l.onMessage(msg);
+                sent++;
             }
+            return sent;
         }
     }
 
     @Override
-    public Optional<String> getMessageIdForRewind(final KfkaPredicate predicate)
+    public Optional<String> getMessageIdForRewind(final KfkaPredicate predicate, final int rewind)
     {
-        final int rewind = predicate.getRewind();
         final StringBuilder sql = new StringBuilder("SELECT message_id FROM kfka WHERE timestamp > ?");
         final List<Object> params = new LinkedList<>();
         params.add(getTtlTs());
@@ -370,16 +368,20 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
     }
 
     @Override
-    public void sendIncluding(final String messageId, final KfkaPredicate predicate, final KfkaMessageListener<T> l)
+    public int sendIncluding(final String messageId, final KfkaPredicate predicate, final KfkaMessageListener<T> l)
     {
+        Objects.requireNonNull(messageId, "messageId cannot be null");
+        int sent = 0;
         try (final AbstractIterator<T> iter = fromMessageIdIterator(messageId, predicate))
         {
             while (iter.hasNext())
             {
                 final T msg = iter.next();
                 l.onMessage(msg);
+                sent++;
             }
         }
+        return sent;
     }
 }
 

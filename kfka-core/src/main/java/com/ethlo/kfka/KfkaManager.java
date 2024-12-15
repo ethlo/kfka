@@ -33,9 +33,13 @@ public interface KfkaManager<T extends KfkaMessage>
         addListener(listener, new KfkaPredicate());
     }
 
-    KfkaMessageListener<T> addListener(KfkaMessageListener<T> listener, KfkaPredicate kfkaPredicate);
+    void addListener(KfkaMessageListener<T> listener, KfkaPredicate kfkaPredicate);
 
     void clear();
+
+    int addListener(KfkaMessageListener<T> listener, KfkaPredicate kfkaPredicate, String lastMessageId);
+
+    int addListener(KfkaMessageListener<T> listener, KfkaPredicate kfkaPredicate, int rewind);
 
     void removeListener(KfkaMessageListener<T> listener);
 
@@ -45,5 +49,10 @@ public interface KfkaManager<T extends KfkaMessage>
     {
         addAll(List.of(value));
         return value;
+    }
+
+    default void addListener(KfkaMessageListener<T> listener, String lastSeenMessageId)
+    {
+        addListener(listener, new KfkaPredicate(), lastSeenMessageId);
     }
 }
