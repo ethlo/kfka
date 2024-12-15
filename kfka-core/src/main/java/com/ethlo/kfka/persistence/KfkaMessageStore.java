@@ -42,5 +42,7 @@ public interface KfkaMessageStore<T>
 
     void sendAll(KfkaPredicate predicate, KfkaMessageListener<T> l);
 
+    Optional<String> getLastKnownId();
+
     void sendIncluding(String messageId, KfkaPredicate predicate, KfkaMessageListener<T> l);
 }

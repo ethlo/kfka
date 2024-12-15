@@ -364,6 +364,12 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
     }
 
     @Override
+    public Optional<String> getLastKnownId()
+    {
+        return simpleTpl.queryForObject("SELECT MAX(message_id) FROM kfka", List.of(), String.class);
+    }
+
+    @Override
     public void sendIncluding(final String messageId, final KfkaPredicate predicate, final KfkaMessageListener<T> l)
     {
         try (final AbstractIterator<T> iter = fromMessageIdIterator(messageId, predicate))

@@ -195,7 +195,7 @@ public class SimpleJdbcTemplate
             throw new RuntimeSqlException(new SQLException("More than one result found for query"));
         }
 
-        return Optional.of(result.get(0));
+        return Optional.ofNullable(result.get(0));
     }
 
     public long update(final String sql, final List<Object> params)
