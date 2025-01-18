@@ -145,7 +145,7 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
                     }
                     else
                     {
-                        logger.info("Exhausted iterator");
+                        logger.trace("Exhausted iterator");
                     }
                 }
                 catch (SQLException exc)
