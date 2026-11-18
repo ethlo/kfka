@@ -364,7 +364,9 @@ public class JdbcKfkaMessageStore<T extends KfkaMessage> implements KfkaMessageS
     @Override
     public Optional<String> getLastKnownId()
     {
-        return simpleTpl.queryForObject("SELECT MAX(message_id) FROM kfka", List.of(), String.class);
+        // message_id is a binary column, for which getObject returns a byte[]
+        final List<String> result = simpleTpl.queryByRow("SELECT MAX(message_id) FROM kfka", List.of(), rs -> rs.getString(1));
+        return result.isEmpty() ? Optional.empty() : Optional.ofNullable(result.get(0));
     }
 
     @Override
