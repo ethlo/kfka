@@ -7,6 +7,7 @@
         <version>0-SNAPSHOT</version>
     </parent>
     <artifactId>kfka-core</artifactId>
+    <name>KFKA Core</name>
     <dependencies>
         <dependency>
             <groupId>org.slf4j</groupId>
