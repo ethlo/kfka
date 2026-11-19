@@ -16,7 +16,7 @@ ideal as an embedded message queue.
 <dependency>
     <groupId>com.ethlo.kfka</groupId>
     <artifactId>kfka-jdbc</artifactId>
-    <version>${project.version}</version>
+    <version>${released.version}</version>
 </dependency>
 ```
 
