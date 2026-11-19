@@ -43,6 +43,7 @@ import com.ethlo.kfka.CollectingListener;
 import com.ethlo.kfka.KfkaManager;
 import com.ethlo.kfka.KfkaMessage;
 import com.ethlo.kfka.KfkaPredicate;
+import com.ethlo.kfka.persistence.KfkaMessageStore;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = TestCfg.class)
@@ -53,6 +54,24 @@ public class KfkaTest
 
     @Autowired
     private KfkaManager<CustomKfkaMessage> kfkaManager;
+
+    @Autowired
+    private KfkaMessageStore<CustomKfkaMessage> msgStore;
+
+    @Test
+    void testGetLastKnownId()
+    {
+        kfkaManager.clear();
+        assertThat(msgStore.getLastKnownId()).isEmpty();
+
+        CustomKfkaMessage last = null;
+        for (int id = 1; id <= 3; id++)
+        {
+            last = kfkaManager.add(new CustomKfkaMessageBuilder().payload("" + id).topic("mytopic").type("mytype").build());
+        }
+
+        assertThat(msgStore.getLastKnownId()).contains(last.getMessageId());
+    }
 
     @Test
     void testQueryLast()
